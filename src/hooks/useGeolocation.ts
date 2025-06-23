@@ -1,5 +1,5 @@
 // src/hooks/useGeolocation.ts
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { GeolocationError } from "../types/location";
 
 interface GeolocationState {
@@ -8,6 +8,7 @@ interface GeolocationState {
   accuracy: number | null;
   error: GeolocationError | null;
   loading: boolean;
+  isWatching: boolean;
 }
 
 export const useGeolocation = () => {
@@ -17,7 +18,10 @@ export const useGeolocation = () => {
     accuracy: null,
     error: null,
     loading: false,
+    isWatching: false,
   });
+
+  const watchId = useRef<number | null>(null);
 
   const getErrorMessage = (code: number): string => {
     switch (code) {
@@ -49,13 +53,14 @@ export const useGeolocation = () => {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setState({
+        setState((prev) => ({
+          ...prev,
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
           error: null,
           loading: false,
-        });
+        }));
       },
       (error) => {
         setState((prev) => ({
@@ -69,14 +74,66 @@ export const useGeolocation = () => {
       },
       {
         enableHighAccuracy: true,
-        timeout: 15000, // Aumentado a 15 segundos
-        maximumAge: 300000, // 5 minutos
+        timeout: 15000,
+        maximumAge: 300000,
       }
     );
   };
 
+  const startWatching = () => {
+    if (!navigator.geolocation || state.isWatching) return;
+
+    setState((prev) => ({ ...prev, isWatching: true, error: null }));
+
+    watchId.current = navigator.geolocation.watchPosition(
+      (position) => {
+        setState((prev) => ({
+          ...prev,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          error: null,
+          loading: false,
+        }));
+      },
+      (error) => {
+        setState((prev) => ({
+          ...prev,
+          error: {
+            code: error.code,
+            message: getErrorMessage(error.code),
+          },
+          loading: false,
+        }));
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 60000,
+        timeout: 10000,
+      }
+    );
+  };
+
+  const stopWatching = () => {
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+    setState((prev) => ({ ...prev, isWatching: false }));
+  };
+
+  useEffect(() => {
+    return () => {
+      if (watchId.current !== null) {
+        navigator.geolocation.clearWatch(watchId.current);
+      }
+    };
+  }, []);
+
   return {
     ...state,
     getCurrentPosition,
+    startWatching,
+    stopWatching,
   };
 };
