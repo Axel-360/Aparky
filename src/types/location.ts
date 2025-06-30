@@ -1,4 +1,4 @@
-// src/types/location.ts
+// src/types/location.ts - ACTUALIZADO CON UBICACIONES MANUALES
 export interface CarLocation {
   id: string;
   latitude: number;
@@ -7,10 +7,13 @@ export interface CarLocation {
   timestamp: number;
   note?: string;
   photos?: string[]; // URLs de las fotos en base64
-  parkingType?: "street" | "garage" | "lot" | "other";
+  parkingType?: "Calle" | "Garaje" | "Parking" | "Otro";
   expiryTime?: number; // Timestamp cuando expira el parking
   cost?: number; // Costo del parking
   reminderMinutes?: number; // Minutos antes del vencimiento para recordar
+  extensionCount?: number;
+  accuracy?: number;
+  isManualPlacement?: boolean; // NUEVO: Flag para ubicaciones marcadas manualmente
 }
 
 export interface LocationWithAccuracy {
@@ -27,7 +30,7 @@ export interface GeolocationError {
 
 // Nuevos tipos para las mejoras
 export interface UserPreferences {
-  theme: "light" | "dark";
+  theme: "light" | "dark" | "system";
   sortBy: "date" | "note";
   showAll: boolean;
   mapType: "osm" | "satellite" | "terrain";
@@ -57,6 +60,7 @@ export interface ParkingTimer {
   reminderTime: number;
   isActive: boolean;
 }
+
 export interface NavigationLocation extends LocationWithAccuracy {
   speed?: number;
   heading?: number;

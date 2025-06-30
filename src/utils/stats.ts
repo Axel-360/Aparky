@@ -49,7 +49,7 @@ export const calculateLocationStats = (locations: CarLocation[]): LocationStats 
     }
 
     // Contar tipos de parking
-    const parkingType = location.parkingType || "street";
+    const parkingType = location.parkingType || "Calle";
     parkingTypeCounts[parkingType] = (parkingTypeCounts[parkingType] || 0) + 1;
 
     // Sumar costos
@@ -73,7 +73,7 @@ export const calculateLocationStats = (locations: CarLocation[]): LocationStats 
   // Encontrar el tipo de parking más usado
   const mostUsedParkingType = Object.entries(parkingTypeCounts).reduce(
     (a, b) => (parkingTypeCounts[a[0]] > parkingTypeCounts[b[0]] ? a : b),
-    ["street", 0]
+    ["Calle", 0]
   )[0];
 
   // Calcular promedio de costo

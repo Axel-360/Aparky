@@ -1,13 +1,85 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="description"
+    content="Guarda y encuentra fácilmente dónde aparcaste tu vehículo con GPS, temporizadores y navegación paso a paso" />
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+
+  <!-- Apple PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="CarTracker" />
+
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/pwa-192x192.png" />
+
+  <!-- Android PWA -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="CarTracker" />
+
+  <!-- Android Chrome -->
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="background-color" content="#ffffff" />
+
+  <!-- Android Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png" />
+
+  <!-- Microsoft Tiles -->
+  <meta name="msapplication-TileColor" content="#2563eb" />
+  <meta name="msapplication-TileImage" content="/pwa-192x192.png" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Car Location Tracker - Encuentra tu coche fácilmente" />
+  <meta property="og:description"
+    content="Guarda y encuentra fácilmente dónde aparcaste tu vehículo con GPS, temporizadores y navegación" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/pwa-512x512.png" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Car Location Tracker - Encuentra tu coche" />
+  <meta name="twitter:description"
+    content="Guarda y encuentra fácilmente dónde aparcaste tu vehículo con GPS y navegación" />
+  <meta name="twitter:image" content="/pwa-192x192.png" />
+
+  <!-- SEO adicional -->
+  <meta name="keywords" content="aparcamiento, parking, coche, GPS, ubicación, navegación, temporizador, PWA" />
+  <meta name="author" content="David Rovira" />
+  <meta name="robots" content="index, follow" />
+
+  <title>Car Location Tracker - Encuentra tu coche fácilmente</title>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+
+  <!-- Script para mejorar la carga -->
+  <script>
+    // Precargar recursos críticos
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('SW registrado: ', registration);
+          })
+          .catch(registrationError => {
+            console.log('SW registro falló: ', registrationError);
+          });
+      });
+    }
+  </script>
+</body>
+
 </html>
