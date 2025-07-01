@@ -1,9 +1,9 @@
-// src/App.tsx - ACTUALIZADO CON SISTEMA INTELIGENTE DE UBICACIÓN
+// src/App.tsx
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Toaster } from "@/shared/ui/sonner";
 import { ThemeProvider } from "@/shared/ui/theme-provider";
 import { Alert, AlertDescription, Button, Card, CardContent, Badge } from "@/shared/ui";
-import { AlertTriangle, X, Target, MapPin, Info } from "lucide-react";
+import { AlertTriangle, X, Info } from "lucide-react";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary/ErrorBoundary";
 import { MainLayout } from "@/shared/components/Layout/Layout";
 
@@ -16,29 +16,25 @@ import { usePWA } from "@/hooks/usePWA";
 // Componentes principales
 import LocationSaver from "./features/location/components/LocationSaver/LocationSaver";
 import TimerDashboard from "./features/parking/components/TimerDashboard/TimerDashboard";
-import Map from "./features/location/components/Map/Map";
+import { UnifiedMap } from "./features/location/components/UnifiedMap/UnifiedMap"; // 🚀 NUEVO
 import SavedLocations from "./features/location/components/SavedLocations/SavedLocations";
 import ProximitySearch from "./features/location/components/ProximitySearch/ProximitySearch";
 import Settings from "./shared/components/Settings/Settings";
 import Stats from "./shared/components/Stats/Stats";
 import Navigation from "./features/navigation/components/Navigation/Navigation";
 import LocationPermissions from "./features/navigation/components/LocationPermissions/LocationPermissions";
-import ManualCarPlacement from "./features/location/components/ManualCarPlacement/ManualCarPlacement";
 
 import type { CarLocation, UserPreferences } from "./types/location";
 import { getCarLocations, updateCarLocation } from "./utils/storage";
 import { getUserPreferences, initializeTheme } from "./utils/preferences";
 import { timerManager } from "./utils/timerManager";
-// 🚀 NUEVO: Importar el sistema de ubicación inteligente
 import { LocationManager, useSmartLocation } from "./utils/locationDefaults";
 
 function AppContent() {
-  // 🚀 NUEVO: Hook para ubicación inteligente
   const { initialLocation, isLoading: locationLoading, updateLastKnownLocation } = useSmartLocation();
 
   // Estados principales
   const [locations, setLocations] = useState<CarLocation[]>([]);
-  // 🚀 CAMBIO: Usar ubicación inteligente como default
   const [mapCenter, setMapCenter] = useState<[number, number]>(initialLocation?.coordinates || [40.4168, -3.7038]);
   const [mapZoom, setMapZoom] = useState<number>(initialLocation?.zoom || 13);
   const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>();
@@ -50,25 +46,21 @@ function AppContent() {
   const [showStats, setShowStats] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
   const [showLocationPermissions, setShowLocationPermissions] = useState(false);
-  const [showManualPlacement, setShowManualPlacement] = useState(false);
   const [navigationTarget, setNavigationTarget] = useState<CarLocation | null>(null);
   const [currentView, setCurrentView] = useState<"map" | "proximity">("map");
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
-
-  // 🚀 NUEVO: Estado para mostrar información sobre el origen de la ubicación
   const [showLocationInfo, setShowLocationInfo] = useState(false);
 
   const mapSectionRef = useRef<HTMLDivElement>(null);
   const { isOffline, hasUpdate, updateApp, dismissUpdate } = usePWA();
 
-  // 🚀 NUEVO: Actualizar centro del mapa cuando se carga la ubicación inteligente
+  // Actualizar centro del mapa cuando se carga la ubicación inteligente
   useEffect(() => {
     if (initialLocation && !locationLoading) {
       setMapCenter(initialLocation.coordinates);
       setMapZoom(initialLocation.zoom);
 
-      // Mostrar información sobre el origen de la ubicación por 5 segundos
       if (initialLocation.source !== "Ubicación por defecto (Madrid)") {
         setShowLocationInfo(true);
         setTimeout(() => setShowLocationInfo(false), 5000);
@@ -85,8 +77,6 @@ function AppContent() {
           longitude: position.coords.longitude,
         };
         setCurrentLocation(newLocation);
-
-        // 🚀 NUEVO: Actualizar última ubicación conocida
         updateLastKnownLocation(position.coords.latitude, position.coords.longitude);
       },
       (error) => {
@@ -131,8 +121,6 @@ function AppContent() {
     setMapCenter([newLocation.latitude, newLocation.longitude]);
     setMapZoom(15);
     setSelectedLocationId(newLocation.id);
-
-    // 🚀 NUEVO: Guardar como última ubicación conocida
     LocationManager.saveLastKnownLocation(newLocation.latitude, newLocation.longitude, "saved_location");
   }, []);
 
@@ -148,8 +136,6 @@ function AppContent() {
       setMapCenter([location.latitude, location.longitude]);
       setMapZoom(15);
       setSelectedLocationId(location.id);
-
-      // 🚀 NUEVO: Actualizar última ubicación conocida
       updateLastKnownLocation(location.latitude, location.longitude);
 
       setTimeout(() => {
@@ -170,23 +156,20 @@ function AppContent() {
     setPreferences(newPreferences);
   }, []);
 
-  const handleShowManualPlacement = useCallback(() => {
-    setShowManualPlacement(true);
-  }, []);
+  // 🚀 NUEVO: Handler para cambios en el mapa unificado
+  const handleMapCenterChange = useCallback(
+    (center: [number, number], zoom: number) => {
+      setMapCenter(center);
+      setMapZoom(zoom);
+      updateLastKnownLocation(center[0], center[1]);
+    },
+    [updateLastKnownLocation]
+  );
 
-  const handleHideManualPlacement = useCallback(() => {
-    setShowManualPlacement(false);
-  }, []);
-
-  const handleManualLocationSaved = useCallback((newLocation: CarLocation) => {
-    setLocations((prev) => [newLocation, ...prev]);
-    setMapCenter([newLocation.latitude, newLocation.longitude]);
-    setMapZoom(15);
-    setSelectedLocationId(newLocation.id);
-    setShowManualPlacement(false);
-
-    // 🚀 NUEVO: Guardar como última ubicación conocida
-    LocationManager.saveLastKnownLocation(newLocation.latitude, newLocation.longitude, "manual");
+  // 🚀 NUEVO: Handler para clic en ubicación en el mapa
+  const handleMapLocationClick = useCallback((location: CarLocation) => {
+    setSelectedLocationId(location.id);
+    // Podrías añadir aquí lógica adicional como mostrar detalles
   }, []);
 
   const handleNavigateToLocation = useCallback(
@@ -238,8 +221,6 @@ function AppContent() {
         setMapCenter([avgLat, avgLng]);
         setMapZoom(12);
         setCurrentView("map");
-
-        // 🚀 NUEVO: Actualizar última ubicación conocida
         updateLastKnownLocation(avgLat, avgLng);
 
         setTimeout(() => {
@@ -337,34 +318,17 @@ function AppContent() {
   const sidebarContent = useMemo(
     () => (
       <>
+        {/* 🚀 NUEVO: LocationSaver simplificado con mapa integrado */}
         <LocationSaver
           onLocationSaved={handleLocationSaved}
           autoSave={preferences.autoSave}
           defaultReminderMinutes={preferences.defaultReminderMinutes}
           maxPhotos={preferences.maxPhotos}
           photoQuality={preferences.photoQuality}
+          mapType={preferences.mapType}
+          initialCenter={mapCenter}
+          initialZoom={mapZoom}
         />
-
-        {/* NUEVO: Botón para ubicación manual */}
-        <Card className="border-dashed border-2 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20">
-          <CardContent className="p-4 text-center space-y-3">
-            <div className="flex items-center justify-center gap-2 text-orange-700 dark:text-orange-300">
-              <Target className="h-5 w-5" />
-              <span className="font-medium">¿Se te olvidó guardar tu coche?</span>
-            </div>
-            <p className="text-sm text-orange-600 dark:text-orange-400">
-              Márcalo manualmente en el mapa si ya no estás cerca
-            </p>
-            <Button
-              onClick={handleShowManualPlacement}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-              size="sm"
-            >
-              <MapPin className="h-4 w-4 mr-2" />
-              Marcar en mapa
-            </Button>
-          </CardContent>
-        </Card>
 
         <TimerDashboard locations={locations} onLocationUpdated={handleLocationUpdated} />
       </>
@@ -375,7 +339,9 @@ function AppContent() {
       preferences.defaultReminderMinutes,
       preferences.maxPhotos,
       preferences.photoQuality,
-      handleShowManualPlacement,
+      preferences.mapType,
+      mapCenter,
+      mapZoom,
       locations,
       handleLocationUpdated,
     ]
@@ -420,7 +386,6 @@ function AppContent() {
                 🗺️ Mapa de ubicaciones
               </h2>
 
-              {/* 🚀 NUEVO: Información del origen de la ubicación */}
               {initialLocation && initialLocation.source !== "Ubicación por defecto (Madrid)" && (
                 <Badge variant="outline" className="text-xs">
                   {initialLocation.source}
@@ -428,13 +393,21 @@ function AppContent() {
               )}
             </div>
 
+            {/* 🚀 MAPA UNIFICADO PRINCIPAL */}
             <div>
-              <Map
-                locations={locations}
+              <UnifiedMap
                 center={mapCenter}
                 zoom={mapZoom}
                 mapType={preferences.mapType}
+                height="400px"
+                locations={locations}
                 selectedLocationId={selectedLocationId}
+                gpsLocation={currentLocation ? [currentLocation.latitude, currentLocation.longitude] : null}
+                showControls={true}
+                showLocationButton={true}
+                showResetButton={true}
+                onLocationClick={handleMapLocationClick}
+                onCenterChange={handleMapCenterChange}
               />
             </div>
           </div>
@@ -451,11 +424,14 @@ function AppContent() {
     [
       currentView,
       initialLocation,
-      locations,
       mapCenter,
       mapZoom,
       preferences.mapType,
+      locations,
       selectedLocationId,
+      currentLocation,
+      handleMapLocationClick,
+      handleMapCenterChange,
       handleLocationSelected,
       handleShowOnMap,
       savedLocationsProps,
@@ -475,7 +451,6 @@ function AppContent() {
         }
       });
 
-      // 🚀 CAMBIO: Solo establecer centro del mapa si no tenemos ubicación inteligente cargándose
       if (!locationLoading && savedLocations.length > 0 && !initialLocation) {
         setMapCenter([savedLocations[0].latitude, savedLocations[0].longitude]);
         setMapZoom(15);
@@ -489,7 +464,7 @@ function AppContent() {
     }
   }, [getCurrentLocation, checkLocationPermissions, locationLoading, initialLocation]);
 
-  // 🚀 NUEVO: Mostrar loading mientras se carga la ubicación inteligente
+  // Loading mientras se carga la ubicación inteligente
   if (locationLoading) {
     return (
       <ThemeProvider defaultTheme={preferences.theme} storageKey="car-location-theme">
@@ -513,7 +488,7 @@ function AppContent() {
       <OfflineIndicator isOffline={isOffline} />
       <UpdateNotification isVisible={hasUpdate} onUpdate={updateApp} onDismiss={dismissUpdate} />
 
-      {/* 🚀 NUEVO: Notificación sobre el origen de la ubicación */}
+      {/* Notificación sobre el origen de la ubicación */}
       {showLocationInfo && initialLocation && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4">
           <Alert className="shadow-lg bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
@@ -580,15 +555,6 @@ function AppContent() {
           <Navigation targetLocation={navigationTarget} currentLocation={currentLocation} onClose={closeNavigation} />
         </ErrorBoundary>
       )}
-
-      {/* 🚀 CAMBIO: Pasar ubicación inteligente como initialCenter */}
-      <ManualCarPlacement
-        isOpen={showManualPlacement}
-        onClose={handleHideManualPlacement}
-        onLocationSaved={handleManualLocationSaved}
-        initialCenter={mapCenter} // Usar el centro actual del mapa
-        mapType={preferences.mapType}
-      />
 
       <Toaster />
     </ThemeProvider>

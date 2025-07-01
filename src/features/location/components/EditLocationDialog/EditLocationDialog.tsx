@@ -622,7 +622,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              <strong>Cambios detectados.</strong> Los cambios se guardarán al presionar "Guardar cambios".
+              <strong>Nota:</strong> Los cambios se guardarán al presionar "Guardar cambios".
               {locationChanged && (
                 <div className="mt-1 text-sm">• La ubicación será marcada como editada manualmente</div>
               )}
