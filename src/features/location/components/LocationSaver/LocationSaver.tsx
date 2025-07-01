@@ -1,5 +1,5 @@
 //src/features/location/components/LocationSaver/LocationSaver.tsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Alert, AlertDescription, Badge } from "@/shared/ui";
 import { toast } from "sonner";
 import {
@@ -51,6 +51,26 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
   const [saving, setSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // 🚀 CAMBIO 1: Estados para auto-save inteligente (persistente + detección de movimiento)
+  const [lastAutoSave, setLastAutoSave] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem("car-location-last-autosave");
+      return saved ? parseInt(saved, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  // 🚀 NUEVO: Guardar última ubicación guardada para detectar movimiento
+  const [lastSavedLocation, setLastSavedLocation] = useState<[number, number] | null>(() => {
+    try {
+      const saved = localStorage.getItem("car-location-last-coordinates");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   // Estados de forma inteligente
   const [smartFormMode, setSmartFormMode] = useState<"simple" | "detailed">("simple");
   const [note, setNote] = useState("");
@@ -96,16 +116,65 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     }
   }, [showManualMode, latitude, longitude, loading, error, getCurrentPosition]);
 
-  // Auto-save inteligente
+  // 🚀 CAMBIO 2: Auto-save inteligente con detección de movimiento
   useEffect(() => {
-    if (autoSave && latitude && longitude && !saving && isOnline) {
-      // Delay para evitar múltiples guardados
-      const timer = setTimeout(() => {
-        handleSaveLocation(true);
-      }, 2000);
-      return () => clearTimeout(timer);
+    const now = Date.now();
+    const COOLDOWN = 5 * 60 * 1000; // 5 minutos entre auto-saves
+    const MIN_DISTANCE = 50; // Metros mínimos de movimiento para auto-save
+
+    // Función para calcular distancia entre dos puntos (fórmula de Haversine)
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371e3; // Radio de la Tierra en metros
+      const φ1 = (lat1 * Math.PI) / 180;
+      const φ2 = (lat2 * Math.PI) / 180;
+      const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+      const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c; // Distancia en metros
+    };
+
+    if (autoSave && latitude && longitude && !saving && isOnline && now - lastAutoSave > COOLDOWN) {
+      // 🚀 NUEVO: Verificar si realmente se ha movido
+      let shouldAutoSave = true;
+
+      if (lastSavedLocation) {
+        const distance = calculateDistance(lastSavedLocation[0], lastSavedLocation[1], latitude, longitude);
+
+        // Solo auto-guardar si se ha movido más de la distancia mínima
+        shouldAutoSave = distance >= MIN_DISTANCE;
+
+        // Debug en desarrollo
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            `🎯 Auto-save: Distancia desde último guardado: ${Math.round(distance)}m (mín: ${MIN_DISTANCE}m)`
+          );
+        }
+      }
+
+      if (shouldAutoSave) {
+        const timer = setTimeout(() => {
+          const saveTime = Date.now();
+          const currentCoords: [number, number] = [latitude, longitude];
+
+          handleSaveLocation(true);
+          setLastAutoSave(saveTime);
+          setLastSavedLocation(currentCoords);
+
+          // Persistir en localStorage para sobrevivir recargas
+          try {
+            localStorage.setItem("car-location-last-autosave", saveTime.toString());
+            localStorage.setItem("car-location-last-coordinates", JSON.stringify(currentCoords));
+          } catch (error) {
+            console.warn("No se pudo guardar datos de auto-save:", error);
+          }
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [latitude, longitude, autoSave, saving, isOnline]);
+  }, [latitude, longitude, autoSave, saving, isOnline, lastAutoSave, lastSavedLocation]);
 
   // Obtener dirección automáticamente
   useEffect(() => {
@@ -445,14 +514,14 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
               center={manualLocation || (latitude && longitude ? [latitude, longitude] : initialCenter)}
               zoom={initialZoom}
               mapType={mapType}
-              height={smartFormMode === "simple" ? "180px" : "220px"}
+              height={smartFormMode === "simple" ? "280px" : "320px"}
               isManualMode={showManualMode}
               manualLocation={manualLocation}
               onManualLocationSet={handleManualLocationSet}
               gpsLocation={latitude && longitude ? [latitude, longitude] : null}
               showControls={true}
               showLocationButton={true}
-              onCenterChange={(center: [number, number], zoom: number) => {
+              onCenterChange={(_center: [number, number], _zoom: number) => {
                 // 🚀 NUEVO: Cuando el mapa se centra, forzar actualización del GPS
                 if (!showManualMode && !manualLocation) {
                   // Si estamos en modo GPS y el mapa se centra, obtener ubicación actual
@@ -480,20 +549,40 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
           )}
         </div>
 
-        {/* 🚀 NUEVO: Información de debug en desarrollo
-        {process.env.NODE_ENV === "development" && (
-          <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded space-y-1">
-            <div>📍 GPS: {latitude ? `${latitude.toFixed(4)}, ${longitude?.toFixed(4)}` : "No disponible"}</div>
+        {/* 🚀 CAMBIO 3: Debug de auto-save inteligente con detección de movimiento */}
+        {process.env.NODE_ENV === "development" && autoSave && (
+          <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded space-y-1">
             <div>
-              🎯 Manual:{" "}
-              {manualLocation ? `${manualLocation[0].toFixed(4)}, ${manualLocation[1].toFixed(4)}` : "No marcada"}
+              Auto-save:{" "}
+              {lastAutoSave === 0
+                ? "Listo para primer guardado"
+                : `Próximo en ${Math.max(0, Math.ceil((5 * 60 * 1000 - (Date.now() - lastAutoSave)) / 1000))}s`}
             </div>
-            <div>🔘 Modo: {showManualMode ? "Manual" : "GPS"}</div>
-            <div>✅ Puede guardar: {canSave ? "Sí" : "No"}</div>
-            <div>📶 Conexión: {isOnline ? "Sí" : "No"}</div>
-            {accuracy && <div>🎯 Precisión: ±{Math.round(accuracy)}m</div>}
+            <div className="text-xs opacity-75">
+              Último: {lastAutoSave === 0 ? "Nunca" : new Date(lastAutoSave).toLocaleTimeString()}
+            </div>
+            {lastSavedLocation && latitude && longitude && (
+              <div className="text-xs opacity-75">
+                Distancia:{" "}
+                {Math.round(
+                  (() => {
+                    const R = 6371e3;
+                    const φ1 = (lastSavedLocation[0] * Math.PI) / 180;
+                    const φ2 = (latitude * Math.PI) / 180;
+                    const Δφ = ((latitude - lastSavedLocation[0]) * Math.PI) / 180;
+                    const Δλ = ((longitude - lastSavedLocation[1]) * Math.PI) / 180;
+                    const a =
+                      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    return R * c;
+                  })()
+                )}
+                m desde último guardado (mín: 50m)
+              </div>
+            )}
           </div>
-        )} */}
+        )}
 
         {/* Toggle modo de formulario */}
         <Button

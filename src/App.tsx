@@ -2,8 +2,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Toaster } from "@/shared/ui/sonner";
 import { ThemeProvider } from "@/shared/ui/theme-provider";
-import { Alert, AlertDescription, Button, Card, CardContent, Badge } from "@/shared/ui";
-import { AlertTriangle, X, Info } from "lucide-react";
+import { Alert, AlertDescription, Button } from "@/shared/ui";
+import { AlertTriangle, X } from "lucide-react";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary/ErrorBoundary";
 import { MainLayout } from "@/shared/components/Layout/Layout";
 
@@ -16,7 +16,7 @@ import { usePWA } from "@/hooks/usePWA";
 // Componentes principales
 import LocationSaver from "./features/location/components/LocationSaver/LocationSaver";
 import TimerDashboard from "./features/parking/components/TimerDashboard/TimerDashboard";
-import { UnifiedMap } from "./features/location/components/UnifiedMap/UnifiedMap"; // 🚀 NUEVO
+import { UnifiedMap } from "./features/location/components/UnifiedMap/UnifiedMap";
 import SavedLocations from "./features/location/components/SavedLocations/SavedLocations";
 import ProximitySearch from "./features/location/components/ProximitySearch/ProximitySearch";
 import Settings from "./shared/components/Settings/Settings";
@@ -25,10 +25,11 @@ import Navigation from "./features/navigation/components/Navigation/Navigation";
 import LocationPermissions from "./features/navigation/components/LocationPermissions/LocationPermissions";
 
 import type { CarLocation, UserPreferences } from "./types/location";
-import { getCarLocations, updateCarLocation } from "./utils/storage";
+import { getCarLocations, updateCarLocation, saveCarLocation, deleteCarLocation } from "./utils/storage";
 import { getUserPreferences, initializeTheme } from "./utils/preferences";
 import { timerManager } from "./utils/timerManager";
 import { LocationManager, useSmartLocation } from "./utils/locationDefaults";
+import { toast } from "sonner";
 
 function AppContent() {
   const { initialLocation, isLoading: locationLoading, updateLastKnownLocation } = useSmartLocation();
@@ -42,50 +43,38 @@ function AppContent() {
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Estados de UI
+  const [currentView, setCurrentView] = useState<"map" | "proximity">("map");
   const [showSettings, setShowSettings] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
-  const [showLocationPermissions, setShowLocationPermissions] = useState(false);
   const [navigationTarget, setNavigationTarget] = useState<CarLocation | null>(null);
-  const [currentView, setCurrentView] = useState<"map" | "proximity">("map");
-  const [globalError, setGlobalError] = useState<string | null>(null);
+  const [showLocationPermissions, setShowLocationPermissions] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
-  const [showLocationInfo, setShowLocationInfo] = useState(false);
+  const [globalError, setGlobalError] = useState<string | null>(null);
 
+  // Referencias
   const mapSectionRef = useRef<HTMLDivElement>(null);
+
+  // Configuración de PWA
   const { isOffline, hasUpdate, updateApp, dismissUpdate } = usePWA();
 
-  // Actualizar centro del mapa cuando se carga la ubicación inteligente
-  useEffect(() => {
-    if (initialLocation && !locationLoading) {
-      setMapCenter(initialLocation.coordinates);
-      setMapZoom(initialLocation.zoom);
-
-      if (initialLocation.source !== "Ubicación por defecto (Madrid)") {
-        setShowLocationInfo(true);
-        setTimeout(() => setShowLocationInfo(false), 5000);
-      }
-    }
-  }, [initialLocation, locationLoading]);
-
+  // Obtener ubicación actual del usuario
   const getCurrentLocation = useCallback(() => {
-    if (!("geolocation" in navigator) || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const newLocation = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-        setCurrentLocation(newLocation);
-        updateLastKnownLocation(position.coords.latitude, position.coords.longitude);
-      },
-      (error) => {
-        console.warn("Could not get current location:", error);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
-    );
-  }, [updateLastKnownLocation]);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => console.error("Error getting current location:", error),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+      );
+    }
+  }, []);
 
+  // Verificar permisos de geolocalización
   const checkLocationPermissions = useCallback(async () => {
     if (!("geolocation" in navigator) || !navigator.geolocation) {
       setLocationPermissionGranted(false);
@@ -117,17 +106,37 @@ function AppContent() {
   }, []);
 
   const handleLocationSaved = useCallback((newLocation: CarLocation) => {
-    setLocations((prev) => [newLocation, ...prev]);
-    setMapCenter([newLocation.latitude, newLocation.longitude]);
-    setMapZoom(15);
-    setSelectedLocationId(newLocation.id);
-    LocationManager.saveLastKnownLocation(newLocation.latitude, newLocation.longitude, "saved_location");
+    try {
+      // ✅ Guardar en localStorage
+      saveCarLocation(newLocation);
+
+      // Actualizar estado local
+      setLocations((prev) => [newLocation, ...prev]);
+      setMapCenter([newLocation.latitude, newLocation.longitude]);
+      setMapZoom(15);
+      setSelectedLocationId(newLocation.id);
+      LocationManager.saveLastKnownLocation(newLocation.latitude, newLocation.longitude, "saved_location");
+
+      // Programar timer si es necesario
+      if (newLocation.expiryTime && newLocation.expiryTime > Date.now()) {
+        timerManager.scheduleTimer(newLocation);
+      }
+    } catch (error) {
+      console.error("Error saving location:", error);
+      toast.error("❌ No se pudo guardar la ubicación en localStorage");
+    }
   }, []);
 
   const handleLocationDeleted = useCallback((id: string) => {
-    setLocations((prev) => prev.filter((location) => location.id !== id));
-    setSelectedLocationId((prevSelected) => (prevSelected === id ? undefined : prevSelected));
-    timerManager.cancelTimer(id);
+    try {
+      deleteCarLocation(id);
+      setLocations((prev) => prev.filter((location) => location.id !== id));
+      setSelectedLocationId((prevSelected) => (prevSelected === id ? undefined : prevSelected));
+      timerManager.cancelTimer(id);
+    } catch (error) {
+      console.error("Error deleting location:", error);
+      toast.error("❌ No se pudo eliminar la ubicación");
+    }
   }, []);
 
   const handleLocationSelected = useCallback(
@@ -156,7 +165,7 @@ function AppContent() {
     setPreferences(newPreferences);
   }, []);
 
-  // 🚀 NUEVO: Handler para cambios en el mapa unificado
+  // Handler para cambios en el mapa unificado
   const handleMapCenterChange = useCallback(
     (center: [number, number], zoom: number) => {
       setMapCenter(center);
@@ -166,10 +175,9 @@ function AppContent() {
     [updateLastKnownLocation]
   );
 
-  // 🚀 NUEVO: Handler para clic en ubicación en el mapa
+  // Handler para clic en ubicación en el mapa
   const handleMapLocationClick = useCallback((location: CarLocation) => {
     setSelectedLocationId(location.id);
-    // Podrías añadir aquí lógica adicional como mostrar detalles
   }, []);
 
   const handleNavigateToLocation = useCallback(
@@ -318,7 +326,6 @@ function AppContent() {
   const sidebarContent = useMemo(
     () => (
       <>
-        {/* 🚀 NUEVO: LocationSaver simplificado con mapa integrado */}
         <LocationSaver
           onLocationSaved={handleLocationSaved}
           autoSave={preferences.autoSave}
@@ -353,13 +360,13 @@ function AppContent() {
       onLocationDeleted: handleLocationDeleted,
       onLocationSelected: handleLocationSelected,
       onNavigateToLocation: handleNavigateToLocation,
+      sortBy: "date" as const,
+      showAll: true,
+      onSortChange: () => {},
+      onShowAllChange: () => {},
       onTimerExtend: handleTimerExtend,
       onTimerCancel: handleTimerCancel,
       onLocationUpdated: handleLocationUpdated,
-      sortBy: preferences.sortBy,
-      showAll: preferences.showAll,
-      onSortChange: (sortBy: "date" | "note") => handlePreferencesChange({ ...preferences, sortBy }),
-      onShowAllChange: (showAll: boolean) => handlePreferencesChange({ ...preferences, showAll }),
     }),
     [
       locations,
@@ -369,10 +376,6 @@ function AppContent() {
       handleTimerExtend,
       handleTimerCancel,
       handleLocationUpdated,
-      preferences.sortBy,
-      preferences.showAll,
-      handlePreferencesChange,
-      preferences,
     ]
   );
 
@@ -380,21 +383,8 @@ function AppContent() {
     () => (
       <>
         {currentView === "map" ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 ref={mapSectionRef} className="text-xl font-semibold">
-                🗺️ Mapa de ubicaciones
-              </h2>
-
-              {initialLocation && initialLocation.source !== "Ubicación por defecto (Madrid)" && (
-                <Badge variant="outline" className="text-xs">
-                  {initialLocation.source}
-                </Badge>
-              )}
-            </div>
-
-            {/* 🚀 MAPA UNIFICADO PRINCIPAL */}
-            <div>
+          <div className="space-y-6">
+            <div ref={mapSectionRef} className="rounded-lg overflow-hidden border shadow-lg">
               <UnifiedMap
                 center={mapCenter}
                 zoom={mapZoom}
@@ -423,7 +413,6 @@ function AppContent() {
     ),
     [
       currentView,
-      initialLocation,
       mapCenter,
       mapZoom,
       preferences.mapType,
@@ -460,69 +449,39 @@ function AppContent() {
       checkLocationPermissions();
     } catch (error) {
       console.error("Error initializing app:", error);
-      setGlobalError("Error al cargar la aplicación.");
+      setGlobalError("Error al cargar la aplicación. Por favor, recarga la página.");
     }
   }, [getCurrentLocation, checkLocationPermissions, locationLoading, initialLocation]);
 
-  // Loading mientras se carga la ubicación inteligente
-  if (locationLoading) {
-    return (
-      <ThemeProvider defaultTheme={preferences.theme} storageKey="car-location-theme">
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <Card className="w-full max-w-md mx-auto">
-            <CardContent className="p-6 text-center space-y-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <div>
-                <h3 className="text-lg font-semibold">Cargando aplicación</h3>
-                <p className="text-sm text-muted-foreground">Determinando la mejor ubicación inicial...</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </ThemeProvider>
-    );
-  }
+  // Actualizar el centro del mapa cuando cambie initialLocation
+  useEffect(() => {
+    if (initialLocation && !locationLoading) {
+      setMapCenter(initialLocation.coordinates);
+      setMapZoom(initialLocation.zoom);
+    }
+  }, [initialLocation, locationLoading]);
 
   return (
-    <ThemeProvider defaultTheme={preferences.theme} storageKey="car-location-theme">
-      <OfflineIndicator isOffline={isOffline} />
+    <ThemeProvider defaultTheme="system" storageKey="where-is-it-theme">
       <UpdateNotification isVisible={hasUpdate} onUpdate={updateApp} onDismiss={dismissUpdate} />
+      <OfflineIndicator isOffline={isOffline} />
 
-      {/* Notificación sobre el origen de la ubicación */}
-      {showLocationInfo && initialLocation && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4">
-          <Alert className="shadow-lg bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="pr-8 text-blue-800 dark:text-blue-200">
-              <strong>Ubicación detectada:</strong> {initialLocation.source}
-            </AlertDescription>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-2 right-2 h-6 w-6 p-0 text-blue-600"
-              onClick={() => setShowLocationInfo(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </Alert>
-        </div>
-      )}
-
+      {/* Indicador de error global */}
       {globalError && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4">
-          <Alert variant="destructive" className="shadow-lg">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription className="pr-8">{globalError}</AlertDescription>
+        <Alert className="fixed top-4 left-4 right-4 z-50 mx-auto max-w-md bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{globalError}</span>
             <Button
               variant="ghost"
               size="sm"
-              className="absolute top-2 right-2 h-6 w-6 p-0"
               onClick={handleGlobalErrorDismiss}
+              className="h-auto p-1 hover:bg-red-100 dark:hover:bg-red-900"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3 w-3" />
             </Button>
-          </Alert>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       <MainLayout headerProps={headerProps} sidebar={sidebarContent}>

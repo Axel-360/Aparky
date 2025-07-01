@@ -15,14 +15,14 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, onShowStats, onShowSettings, className }) => {
   return (
     <header className={cn("bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg", className)}>
-      <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
           {/* Title Section */}
           <div className="text-center sm:text-left">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2 flex items-center justify-center sm:justify-start gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold mb-1 flex items-center justify-center sm:justify-start gap-2">
               🚗 ¿Dónde aparqué mi coche?
             </h1>
-            <p className="text-blue-100 text-sm sm:text-base">
+            <p className="text-blue-100 text-xs sm:text-sm">
               Guarda y encuentra fácilmente donde aparcaste tu vehículo
             </p>
           </div>
