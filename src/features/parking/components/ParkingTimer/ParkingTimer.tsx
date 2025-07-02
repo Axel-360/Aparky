@@ -170,7 +170,7 @@ const ParkingTimer: React.FC<ParkingTimerProps> = ({
             <Tabs defaultValue="duration">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="duration">Por Duración</TabsTrigger>
-                <TabsTrigger value="time">Por Hora de Finalización</TabsTrigger>
+                <TabsTrigger value="time">Hora límite</TabsTrigger>
               </TabsList>
               <TabsContent value="duration" className="pt-4 space-y-4">
                 <div>

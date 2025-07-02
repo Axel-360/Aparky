@@ -384,7 +384,7 @@ function AppContent() {
       <>
         {currentView === "map" ? (
           <div className="space-y-6">
-            <div ref={mapSectionRef} className="rounded-lg overflow-hidden border shadow-lg">
+            <div ref={mapSectionRef} className="rounded-lg overflow-hidden border">
               <UnifiedMap
                 center={mapCenter}
                 zoom={mapZoom}
