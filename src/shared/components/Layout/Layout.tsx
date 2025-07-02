@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary/ErrorBoundary";
 import Header from "@/shared/components/Header/Header";
+import { useTheme } from "@/shared/ui/theme-provider";
 
 interface LayoutProps {
   children: ReactNode;
@@ -19,6 +20,24 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps, sidebar, showFooter = true }) => {
+  const { theme } = useTheme();
+
+  // Función para obtener el texto del tema actual
+  const getThemeDisplayText = () => {
+    switch (theme) {
+      case "light":
+        return "☀️ Modo Claro";
+      case "dark":
+        return "🌙 Modo Oscuro";
+      case "system":
+        // Detectar si el sistema está en modo oscuro
+        const isSystemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        return `🖥️ Modo Sistema (${isSystemDark ? "Oscuro" : "Claro"})`;
+      default:
+        return "🌙 Modo Oscuro";
+    }
+  };
+
   return (
     <div className={cn("min-h-screen bg-background text-foreground transition-colors duration-300", className)}>
       {/* Header */}
@@ -56,11 +75,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
             <div className="text-center space-y-2">
               <p className="text-xs text-muted-foreground">Creado con ❤️ por David Rovira</p>
               <div className="flex justify-center items-center gap-4 text-xs text-muted-foreground">
-                <span>🚗 Car Location Tracker</span>
+                <span>🚗 Aparky</span>
                 <span>•</span>
-                <span>📱 Progressive Web App</span>
+                <span>📱 Aplicación Web</span>
                 <span>•</span>
-                <span>🌙 Dark Mode</span>
+                <span>{getThemeDisplayText()}</span>
               </div>
             </div>
           </div>
@@ -78,52 +97,8 @@ export const MainLayout: React.FC<{
   className?: string;
 }> = ({ children, sidebar, headerProps, className }) => {
   return (
-    <Layout headerProps={headerProps} sidebar={sidebar} className={className}>
+    <Layout className={className} headerProps={headerProps} sidebar={sidebar}>
       {children}
     </Layout>
   );
-};
-
-// Layout simple para otras páginas (sin sidebar)
-export const SimpleLayout: React.FC<{
-  children: ReactNode;
-  headerProps: LayoutProps["headerProps"];
-  className?: string;
-  showFooter?: boolean;
-}> = ({ children, headerProps, className, showFooter = true }) => {
-  return (
-    <Layout headerProps={headerProps} className={className} showFooter={showFooter}>
-      {children}
-    </Layout>
-  );
-};
-
-// HOC para componentes que necesitan layout automático
-export const withLayout = <P extends object>(
-  Component: React.ComponentType<P>,
-  layoutType: "main" | "simple" = "simple"
-) => {
-  return function WithLayoutComponent(
-    props: P & {
-      headerProps: LayoutProps["headerProps"];
-      sidebar?: ReactNode;
-      showFooter?: boolean;
-    }
-  ) {
-    const { headerProps, sidebar, showFooter, ...componentProps } = props;
-
-    if (layoutType === "main" && sidebar) {
-      return (
-        <MainLayout headerProps={headerProps} sidebar={sidebar}>
-          <Component {...(componentProps as P)} />
-        </MainLayout>
-      );
-    }
-
-    return (
-      <SimpleLayout headerProps={headerProps} showFooter={showFooter}>
-        <Component {...(componentProps as P)} />
-      </SimpleLayout>
-    );
-  };
 };

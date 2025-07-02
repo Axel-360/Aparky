@@ -678,7 +678,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
           <Card>
             <CardContent className="pt-6">
               <div className="text-center text-sm text-muted-foreground space-y-2">
-                <p>🚗 Car Location Tracker</p>
+                <p>🚗 Aparky</p>
                 <p>Versión 2.0 - Creado con ❤️ por David Rovira</p>
                 <div className="flex justify-center gap-2">
                   <Badge variant="secondary">React</Badge>

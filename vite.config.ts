@@ -56,8 +56,8 @@ export default defineConfig({
       includeAssets: ["favicon.ico", "icons/*.png"], // CORREGIDO: incluir icons/
       manifest: {
         id: "/",
-        name: "Car Location Tracker",
-        short_name: "CarTracker",
+        name: "Aparky",
+        short_name: "Aparky",
         description: "Guarda y encuentra fácilmente donde aparcaste tu vehículo",
         theme_color: "#2563eb",
         background_color: "#ffffff",

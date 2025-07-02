@@ -85,7 +85,7 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ className, onDismi
             </div>
 
             <div className="flex-1 space-y-2">
-              <h3 className="font-semibold text-sm">📱 Instalar Car Tracker</h3>
+              <h3 className="font-semibold text-sm">📱 Instalar Aparky</h3>
               <p className="text-xs text-muted-foreground">Instala la app para acceso rápido y uso sin conexión</p>
 
               <div className="flex gap-2">
