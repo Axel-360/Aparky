@@ -1,88 +1,139 @@
+// src/shared/components/ErrorBoundary/ErrorBoundary.tsx
 import React, { Component } from "react";
-import type { ErrorInfo, ReactNode } from "react";
-import { Alert, AlertDescription } from "@/shared/ui/alert";
-import { Button } from "@/shared/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
-import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import type { ReactNode } from "react";
+import { Card, CardContent, CardHeader, CardTitle, Button, Alert, AlertDescription } from "@/shared/ui";
+import { AlertTriangle, RefreshCw, Home, FileText } from "lucide-react";
 
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-  onError?: (error: Error, errorInfo: ErrorInfo) => void;
-}
-
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
+  errorInfo: React.ErrorInfo | null;
+  errorId: string;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+}
+
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
       hasError: false,
       error: null,
       errorInfo: null,
+      errorId: "",
     };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    // Actualiza el estado para mostrar la UI de error
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
+    // Actualiza el state para que el siguiente renderizado muestre la UI de error
     return {
       hasError: true,
       error,
-      errorInfo: null,
+      errorId: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Registra el error
-    console.error("ErrorBoundary capturó un error:", error, errorInfo);
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // Log del error
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
 
+    // Actualizar el estado con la información del error
     this.setState({
       error,
       errorInfo,
     });
 
-    // Callback personalizado para logging
+    // Llamar al callback de error si se proporciona
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
 
-    // En producción, aquí podrías enviar el error a un servicio de monitoring
-    // como Sentry, LogRocket, etc.
+    // Enviar error a servicio de monitoreo (si está configurado)
+    this.reportError(error, errorInfo);
   }
 
-  handleRetry = () => {
+  private reportError = (error: Error, errorInfo: React.ErrorInfo) => {
+    // Aquí podrías enviar el error a un servicio como Sentry, LogRocket, etc.
+    const errorReport = {
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      url: window.location.href,
+      errorId: this.state.errorId,
+    };
+
+    // En desarrollo, mostrar en consola
+    if (process.env.NODE_ENV === "development") {
+      console.group("🚨 Error Report");
+      console.error("Error:", error);
+      console.error("Error Info:", errorInfo);
+      console.error("Full Report:", errorReport);
+      console.groupEnd();
+    }
+
+    // Aquí podrías enviar a tu servicio de logging
+    // sendToErrorService(errorReport);
+  };
+
+  private handleRetry = () => {
+    // Resetear el estado del error
     this.setState({
       hasError: false,
       error: null,
       errorInfo: null,
+      errorId: "",
     });
   };
 
-  handleGoHome = () => {
-    // Reload the page to reset the app state
+  private handleGoHome = () => {
+    // Navegar al inicio y resetear
     window.location.href = "/";
   };
 
+  private handleReportIssue = () => {
+    // Crear reporte para el usuario
+    const reportData = {
+      error: this.state.error?.message,
+      timestamp: new Date().toISOString(),
+      errorId: this.state.errorId,
+      userAgent: navigator.userAgent,
+    };
+
+    const emailBody = encodeURIComponent(
+      `Hola,\n\nEncontré un error en la aplicación Aparky:\n\n` +
+        `Error ID: ${reportData.errorId}\n` +
+        `Timestamp: ${reportData.timestamp}\n` +
+        `Error: ${reportData.error}\n` +
+        `Navegador: ${reportData.userAgent}\n\n` +
+        `Por favor, ayúdame a resolverlo.\n\nGracias!`
+    );
+
+    window.open(`mailto:support@aparky.app?subject=Error Report - ${reportData.errorId}&body=${emailBody}`);
+  };
+
   render() {
+    // Si hay un error, mostrar la UI de error
     if (this.state.hasError) {
-      // Fallback UI personalizada si se proporciona
+      // Si se proporciona un fallback personalizado, usarlo
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
       // UI de error por defecto
       return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
+        <div className="min-h-[400px] flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg mx-auto">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
               </div>
-              <CardTitle className="text-xl">¡Oops! Algo salió mal</CardTitle>
+              <CardTitle className="text-xl">¡Algo salió mal!</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Alert>
@@ -92,14 +143,27 @@ export class ErrorBoundary extends Component<Props, State> {
                 </AlertDescription>
               </Alert>
 
-              {/* Detalles del error (solo en desarrollo) */}
+              {/* Información del error en desarrollo */}
               {process.env.NODE_ENV === "development" && this.state.error && (
                 <details className="bg-muted p-3 rounded-md text-sm">
                   <summary className="cursor-pointer font-medium mb-2">Detalles técnicos (desarrollo)</summary>
-                  <pre className="whitespace-pre-wrap text-xs">
-                    {this.state.error.toString()}
-                    {this.state.errorInfo?.componentStack}
-                  </pre>
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <strong>Error:</strong>
+                      <pre className="mt-1 whitespace-pre-wrap break-words">{this.state.error.toString()}</pre>
+                    </div>
+                    {this.state.errorInfo?.componentStack && (
+                      <div>
+                        <strong>Component Stack:</strong>
+                        <pre className="mt-1 whitespace-pre-wrap break-words text-[10px]">
+                          {this.state.errorInfo.componentStack}
+                        </pre>
+                      </div>
+                    )}
+                    <div>
+                      <strong>Error ID:</strong> {this.state.errorId}
+                    </div>
+                  </div>
                 </details>
               )}
 
@@ -113,17 +177,31 @@ export class ErrorBoundary extends Component<Props, State> {
                   <Home className="mr-2 h-4 w-4" />
                   Volver al inicio
                 </Button>
+                <Button variant="ghost" onClick={this.handleReportIssue} className="w-full text-sm">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Reportar problema
+                </Button>
               </div>
 
               {/* Información adicional */}
               <div className="text-center text-sm text-muted-foreground">
                 <p>Si el problema persiste, intenta:</p>
                 <ul className="mt-2 space-y-1 text-xs">
-                  <li>• Recargar la página</li>
+                  <li>• Recargar la página (Ctrl+F5)</li>
                   <li>• Limpiar caché del navegador</li>
                   <li>• Verificar tu conexión a internet</li>
+                  <li>• Actualizar el navegador</li>
                 </ul>
               </div>
+
+              {/* Error ID para soporte */}
+              {this.state.errorId && (
+                <div className="bg-muted p-2 rounded text-center">
+                  <p className="text-xs text-muted-foreground">
+                    ID del error: <code className="font-mono">{this.state.errorId}</code>
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -135,13 +213,24 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-// Hook para usar en componentes funcionales
-export const withErrorBoundary = <P extends object>(Component: React.ComponentType<P>, fallback?: ReactNode) => {
+// HOC para usar en componentes funcionales
+export const withErrorBoundary = <P extends object>(
+  Component: React.ComponentType<P>,
+  fallback?: ReactNode,
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void
+) => {
   return function WithErrorBoundaryComponent(props: P) {
     return (
-      <ErrorBoundary fallback={fallback}>
+      <ErrorBoundary fallback={fallback} onError={onError}>
         <Component {...props} />
       </ErrorBoundary>
     );
+  };
+};
+
+// Hook para trigger manual de errores (útil para testing)
+export const useErrorHandler = () => {
+  return (error: Error) => {
+    throw error;
   };
 };

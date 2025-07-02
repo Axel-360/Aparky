@@ -48,7 +48,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-7xl">
         {sidebar ? (
-          // Layout con sidebar (tu estructura actual)
+          // Layout con sidebar (estructura actual)
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Sidebar izquierdo */}
             <aside className="lg:col-span-4 space-y-6">
@@ -56,9 +56,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
             </aside>
 
             {/* Contenido principal */}
-            <main className="lg:col-span-8 space-y-6">
+            <section className="lg:col-span-8 space-y-6">
               <ErrorBoundary>{children}</ErrorBoundary>
-            </main>
+            </section>
           </div>
         ) : (
           // Layout sin sidebar (para futuras páginas)
@@ -81,6 +81,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
                 <span>•</span>
                 <span>{getThemeDisplayText()}</span>
               </div>
+              <div className="flex justify-center items-center gap-2 text-[10px] text-muted-foreground/80">
+                <span>v1.0.0</span>
+                <span>•</span>
+                <span>PWA</span>
+                <span>•</span>
+                <span>Funciona sin conexión</span>
+              </div>
             </div>
           </div>
         </footer>
@@ -100,5 +107,41 @@ export const MainLayout: React.FC<{
     <Layout className={className} headerProps={headerProps} sidebar={sidebar}>
       {children}
     </Layout>
+  );
+};
+
+// Layout específico para páginas sin sidebar
+export const SimpleLayout: React.FC<{
+  children: ReactNode;
+  headerProps: LayoutProps["headerProps"];
+  className?: string;
+  showFooter?: boolean;
+}> = ({ children, headerProps, className, showFooter = true }) => {
+  return (
+    <Layout className={className} headerProps={headerProps} showFooter={showFooter}>
+      {children}
+    </Layout>
+  );
+};
+
+// Layout específico para páginas de configuración o modales
+export const ModalLayout: React.FC<{
+  children: ReactNode;
+  title?: string;
+  description?: string;
+  className?: string;
+}> = ({ children, title, description, className }) => {
+  return (
+    <div className={cn("min-h-screen bg-background text-foreground", className)}>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {(title || description) && (
+          <div className="text-center mb-8">
+            {title && <h1 className="text-3xl font-bold mb-2">{title}</h1>}
+            {description && <p className="text-muted-foreground">{description}</p>}
+          </div>
+        )}
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </div>
+    </div>
   );
 };

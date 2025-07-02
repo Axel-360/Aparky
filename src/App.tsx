@@ -23,6 +23,7 @@ import Settings from "./shared/components/Settings/Settings";
 import Stats from "./shared/components/Stats/Stats";
 import Navigation from "./features/navigation/components/Navigation/Navigation";
 import LocationPermissions from "./features/navigation/components/LocationPermissions/LocationPermissions";
+import { NotificationSetup } from "@/components/NotificationSetup";
 
 import type { CarLocation, UserPreferences } from "./types/location";
 import { getCarLocations, updateCarLocation, saveCarLocation, deleteCarLocation } from "./utils/storage";
@@ -30,6 +31,7 @@ import { getUserPreferences, initializeTheme } from "./utils/preferences";
 import { timerManager } from "./utils/timerManager";
 import { LocationManager, useSmartLocation } from "./utils/locationDefaults";
 import { toast } from "sonner";
+import { notificationManager } from "./utils/notificationManager";
 
 function AppContent() {
   const { initialLocation, isLoading: locationLoading, updateLastKnownLocation } = useSmartLocation();
@@ -105,9 +107,9 @@ function AppContent() {
     window.open(url, "_blank", "noopener,noreferrer");
   }, []);
 
-  const handleLocationSaved = useCallback((newLocation: CarLocation) => {
+  const handleLocationSaved = useCallback(async (newLocation: CarLocation) => {
     try {
-      // ✅ Guardar en localStorage
+      // Guardar en localStorage
       saveCarLocation(newLocation);
 
       // Actualizar estado local
@@ -117,13 +119,18 @@ function AppContent() {
       setSelectedLocationId(newLocation.id);
       LocationManager.saveLastKnownLocation(newLocation.latitude, newLocation.longitude, "saved_location");
 
-      // Programar timer si es necesario
+      // ✅ NUEVO: Solicitar permisos de notificación antes de programar timer
       if (newLocation.expiryTime && newLocation.expiryTime > Date.now()) {
-        timerManager.scheduleTimer(newLocation);
+        await timerManager.scheduleTimer(newLocation);
+
+        const timeLeft = Math.round((newLocation.expiryTime - Date.now()) / 1000 / 60);
+        toast.success(`📍 Ubicación guardada con timer de ${timeLeft} minutos`);
+      } else {
+        toast.success("📍 Ubicación guardada correctamente");
       }
     } catch (error) {
       console.error("Error saving location:", error);
-      toast.error("❌ No se pudo guardar la ubicación en localStorage");
+      toast.error("❌ No se pudo guardar la ubicación");
     }
   }, []);
 
@@ -431,6 +438,16 @@ function AppContent() {
   useEffect(() => {
     try {
       initializeTheme();
+      const initializeNotifications = async () => {
+        try {
+          await notificationManager.initialize();
+          console.log("🔔 Sistema de notificaciones inicializado");
+        } catch (error) {
+          console.log("⚠️ No se pudieron inicializar las notificaciones:", error);
+        }
+      };
+
+      initializeNotifications();
       const savedLocations = getCarLocations();
       setLocations(savedLocations);
 
@@ -465,6 +482,8 @@ function AppContent() {
     <ThemeProvider defaultTheme="system" storageKey="where-is-it-theme">
       <UpdateNotification isVisible={hasUpdate} onUpdate={updateApp} onDismiss={dismissUpdate} />
       <OfflineIndicator isOffline={isOffline} />
+
+      <NotificationSetup />
 
       {/* Indicador de error global */}
       {globalError && (

@@ -12,10 +12,10 @@ export default defineConfig({
     tailwindcss(),
     // basicSsl(), // COMENTADO para evitar errores SSL
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       workbox: {
-        clientsClaim: true,
-        skipWaiting: true,
+        //clientsClaim: true,
+        //skipWaiting: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
         runtimeCaching: [
           {
