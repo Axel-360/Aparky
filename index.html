@@ -3,82 +3,119 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 
   <!-- PWA Meta Tags -->
   <meta name="theme-color" content="#2563eb" />
   <meta name="description"
     content="Guarda y encuentra fácilmente dónde aparcaste tu vehículo con GPS, temporizadores y navegación paso a paso" />
 
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.webmanifest" />
-
-  <!-- Apple PWA -->
+  <!-- 🔥 CRÍTICO para iOS: Configuración específica -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Aparky" />
 
-  <!-- Android PWA -->
+  <!-- 🔥 NUEVO: Meta tags para mejor soporte de notificaciones -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="application-name" content="Aparky" />
+  <meta name="apple-touch-fullscreen" content="yes" />
 
-  <!-- Apple Touch Icons -->
-  <link rel="apple-touch-icon" href="/pwa-192x192.png" />
-  <link rel="apple-touch-icon" sizes="192x192" href="/pwa-192x192.png" />
+  <!-- 🔥 CRÍTICO: Evitar que iOS pause la PWA -->
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="format-detection" content="date=no" />
+  <meta name="format-detection" content="address=no" />
+  <meta name="format-detection" content="email=no" />
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+
+  <!-- Apple Touch Icons - CRÍTICO para notificaciones en iOS -->
+  <link rel="apple-touch-icon" href="/icons/pwa-192x192.png" />
+  <link rel="apple-touch-icon" sizes="57x57" href="/icons/pwa-64x64.png" />
+  <link rel="apple-touch-icon" sizes="60x60" href="/icons/pwa-64x64.png" />
+  <link rel="apple-touch-icon" sizes="72x72" href="/icons/pwa-64x64.png" />
+  <link rel="apple-touch-icon" sizes="76x76" href="/icons/pwa-64x64.png" />
+  <link rel="apple-touch-icon" sizes="114x114" href="/icons/pwa-192x192.png" />
+  <link rel="apple-touch-icon" sizes="120x120" href="/icons/pwa-192x192.png" />
+  <link rel="apple-touch-icon" sizes="144x144" href="/icons/pwa-192x192.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/pwa-192x192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/pwa-192x192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/pwa-192x192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="/icons/pwa-512x512.png" />
 
   <!-- Android Icons -->
-  <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
-  <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/pwa-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/pwa-512x512.png" />
+
+  <!-- 🔥 NUEVO: Splash screen para iOS -->
+  <link rel="apple-touch-startup-image" href="/icons/pwa-512x512.png" />
 
   <!-- Microsoft Tiles -->
   <meta name="msapplication-TileColor" content="#2563eb" />
-  <meta name="msapplication-TileImage" content="/pwa-192x192.png" />
+  <meta name="msapplication-TileImage" content="/icons/pwa-192x192.png" />
 
-  <!-- Android Chrome -->
+  <!-- 🔥 MEJORADO: Color schemes -->
   <meta name="theme-color" content="#2563eb" />
   <meta name="background-color" content="#ffffff" />
-  <meta name="msapplication-navbutton-color" content="#2563eb">
-  <meta name="apple-mobile-web-app-status-bar-style" content="#2563eb">
+  <meta name="msapplication-navbutton-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
   <!-- Open Graph -->
   <meta property="og:title" content="Aparky - Encuentra tu coche fácilmente" />
   <meta property="og:description"
     content="Guarda y encuentra fácilmente dónde aparcaste tu vehículo con GPS, temporizadores y navegación" />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="/pwa-512x512.png" />
+  <meta property="og:image" content="/icons/pwa-512x512.png" />
 
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Aparky - Encuentra tu coche" />
-  <meta name="twitter:description"
-    content="Guarda y encuentra fácilmente dónde aparcaste tu vehículo con GPS y navegación" />
-  <meta name="twitter:image" content="/pwa-192x192.png" />
+  <title>Aparky</title>
 
-  <!-- SEO adicional -->
-  <meta name="keywords" content="aparcamiento, parking, coche, GPS, ubicación, navegación, temporizador, PWA" />
-  <meta name="author" content="David Rovira" />
-  <meta name="robots" content="index, follow" />
+  <!-- 🔥 CRÍTICO: Script para mantener la app activa en iOS -->
+  <script>
+    // Prevenir que iOS pause la PWA
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+      // Mantener la app activa con un timer invisible
+      setInterval(() => {
+        // Ping silencioso cada 25 segundos
+        console.log('iOS keep-alive ping');
+      }, 25000);
 
-  <title>Aparky - Encuentra tu coche fácilmente</title>
+      // Prevenir pausa cuando la pantalla se apaga
+      window.addEventListener('pagehide', (e) => {
+        // Intentar mantener la app corriendo
+        e.preventDefault();
+      });
+    }
+  </script>
 </head>
 
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 
-  <!-- Script para mejorar la carga -->
+  <!-- 🔥 NUEVO: Script adicional para registro del SW -->
   <script>
-    // Precargar recursos críticos
+    // Registrar Service Worker lo antes posible
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(registration => {
-            console.log('SW registrado: ', registration);
-          })
-          .catch(registrationError => {
-            console.log('SW registro falló: ', registrationError);
+        navigator.serviceWorker.register('/sw.js', {
+          scope: '/',
+          updateViaCache: 'none'
+        }).then((registration) => {
+          console.log('SW registrado:', registration.scope);
+
+          // Configurar actualización automática
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Nueva versión disponible
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
           });
+        }).catch((error) => {
+          console.error('Error registrando SW:', error);
+        });
       });
     }
   </script>

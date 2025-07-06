@@ -1,4 +1,8 @@
-// public/sw.js - Service Worker DEFINITIVO que nunca pierde la BD
+// create-sw.cjs - Script FINAL para crear el Service Worker robusto anti-dormirse
+const fs = require("fs");
+const path = require("path");
+
+const swContent = `// public/sw.js - Service Worker DEFINITIVO que nunca pierde la BD
 const CACHE_NAME = "aparky-v7-auto-reinit-" + Date.now();
 const NOTIFICATION_DB_NAME = "NotificationQueueDB";
 
@@ -114,12 +118,12 @@ async function saveNotificationQueue(notification) {
 
     return new Promise((resolve) => {
       request.onsuccess = () => {
-        console.log(`💾 SW: Notificación guardada en BD: ${notification.id}`);
+        console.log(\`💾 SW: Notificación guardada en BD: \${notification.id}\`);
         resolve(true);
       };
 
       request.onerror = () => {
-        console.error(`❌ SW: Error guardando notificación: ${request.error}`);
+        console.error(\`❌ SW: Error guardando notificación: \${request.error}\`);
         // 🔥 NUEVO: Si falla, marcar BD como no lista para reinicializar
         dbReady = false;
         db = null;
@@ -161,7 +165,7 @@ async function restoreNotificationQueue() {
         }
       });
 
-      console.log(`🔄 SW: ${restoredCount} notificaciones restauradas de BD`);
+      console.log(\`🔄 SW: \${restoredCount} notificaciones restauradas de BD\`);
     };
 
     request.onerror = () => {
@@ -224,12 +228,12 @@ async function processNotificationQueue() {
   const now = Date.now();
   const processed = [];
 
-  console.log(`🔄 SW: Procesando ${notificationQueue.size} notificaciones...`);
+  console.log(\`🔄 SW: Procesando \${notificationQueue.size} notificaciones...\`);
 
   try {
     for (const [id, notification] of notificationQueue) {
       if (notification.scheduledTime <= now && !notification.processed) {
-        console.log(`🔔 SW: Ejecutando notificación: ${id}`);
+        console.log(\`🔔 SW: Ejecutando notificación: \${id}\`);
 
         try {
           await self.registration.showNotification(notification.title, {
@@ -247,7 +251,7 @@ async function processNotificationQueue() {
             ],
           });
 
-          console.log(`✅ SW: Notificación mostrada: ${id}`);
+          console.log(\`✅ SW: Notificación mostrada: \${id}\`);
 
           notification.processed = true;
           notification.executedAt = now;
@@ -256,17 +260,17 @@ async function processNotificationQueue() {
           // 🔥 MEJORADO: Guardar con verificación automática
           await saveNotificationQueue(notification);
         } catch (error) {
-          console.error(`❌ SW: Error mostrando notificación ${id}:`, error);
+          console.error(\`❌ SW: Error mostrando notificación \${id}:\`, error);
 
           notification.retryCount = (notification.retryCount || 0) + 1;
           if (notification.retryCount < 3) {
             notification.scheduledTime = now + 30000;
-            console.log(`🔄 SW: Reintentando ${id} en 30s (intento ${notification.retryCount})`);
+            console.log(\`🔄 SW: Reintentando \${id} en 30s (intento \${notification.retryCount})\`);
           } else {
             notification.processed = true;
             notification.failed = true;
             processed.push(id);
-            console.error(`❌ SW: Notificación ${id} falló después de 3 intentos`);
+            console.error(\`❌ SW: Notificación \${id} falló después de 3 intentos\`);
           }
         }
       }
@@ -274,11 +278,11 @@ async function processNotificationQueue() {
 
     processed.forEach((id) => {
       notificationQueue.delete(id);
-      console.log(`🧹 SW: Notificación ${id} removida de cola`);
+      console.log(\`🧹 SW: Notificación \${id} removida de cola\`);
     });
 
     if (processed.length > 0) {
-      console.log(`✅ SW: ${processed.length} notificaciones procesadas`);
+      console.log(\`✅ SW: \${processed.length} notificaciones procesadas\`);
     }
   } catch (error) {
     console.error("❌ SW: Error en processNotificationQueue:", error);
@@ -291,12 +295,12 @@ async function processNotificationQueue() {
 self.addEventListener("message", async (event) => {
   const { type, ...data } = event.data;
 
-  console.log(`📨 SW: Mensaje recibido: ${type}`, data);
+  console.log(\`📨 SW: Mensaje recibido: \${type}\`, data);
 
   switch (type) {
     case "SCHEDULE_NOTIFICATION":
       console.log(
-        `📅 SW: Programando notificación: ${data.id} para ${new Date(data.scheduledTime).toLocaleTimeString()}`
+        \`📅 SW: Programando notificación: \${data.id} para \${new Date(data.scheduledTime).toLocaleTimeString()}\`
       );
 
       // Añadir a cola en memoria
@@ -309,9 +313,9 @@ self.addEventListener("message", async (event) => {
       // 🔥 MEJORADO: Guardar con verificación automática
       const saved = await saveNotificationQueue(notificationQueue.get(data.id));
       if (saved) {
-        console.log(`✅ SW: Notificación ${data.id} guardada y programada`);
+        console.log(\`✅ SW: Notificación \${data.id} guardada y programada\`);
       } else {
-        console.warn(`⚠️ SW: Notificación ${data.id} programada solo en memoria`);
+        console.warn(\`⚠️ SW: Notificación \${data.id} programada solo en memoria\`);
       }
 
       if (data.scheduledTime <= Date.now()) {
@@ -322,7 +326,7 @@ self.addEventListener("message", async (event) => {
     case "CANCEL_NOTIFICATION":
       const removed = notificationQueue.delete(data.id);
       if (removed) {
-        console.log(`❌ SW: Notificación cancelada: ${data.id}`);
+        console.log(\`❌ SW: Notificación cancelada: \${data.id}\`);
 
         // Intentar remover de BD
         const isReady = await ensureDatabaseReady();
@@ -379,7 +383,7 @@ self.addEventListener("message", async (event) => {
       break;
 
     default:
-      console.log(`📨 SW: Mensaje no reconocido: ${type}`);
+      console.log(\`📨 SW: Mensaje no reconocido: \${type}\`);
   }
 });
 
@@ -472,4 +476,37 @@ setTimeout(async () => {
     dbConnected: !!(db && !db.closed),
     queueSize: notificationQueue.size,
   });
-}, 1000);
+}, 1000);`;
+
+// Crear directorio public si no existe
+const publicDir = path.join(__dirname, "public");
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+  console.log("✅ Directorio public/ creado");
+}
+
+// Crear archivo sw.js
+const swPath = path.join(publicDir, "sw.js");
+fs.writeFileSync(swPath, swContent);
+
+console.log("✅ Archivo public/sw.js ROBUSTO creado exitosamente");
+console.log("📍 Ubicación:", swPath);
+console.log("📄 Tamaño:", swContent.length, "caracteres");
+console.log("🔥 Características NUEVAS:");
+console.log("  - Auto-verifica BD antes de cada operación");
+console.log("  - Se reinicializa automáticamente si detecta problemas");
+console.log("  - Keep-alive que verifica BD cada 25 segundos");
+console.log("  - Comando de emergencia FORCE_REINIT_DB");
+console.log("  - Manejo de errores de BD en tiempo real");
+
+// Verificar que el archivo existe
+if (fs.existsSync(swPath)) {
+  console.log("✅ Verificación: El archivo existe y es accesible");
+  console.log("🎉 Ahora puedes ejecutar: npm run build");
+  console.log("");
+  console.log("🚀 Este SW NUNCA debería perder la base de datos!");
+  console.log("💡 Si alguna vez falla, usa en consola:");
+  console.log("   navigator.serviceWorker.ready.then(reg => reg.active.postMessage({type: 'FORCE_REINIT_DB'}))");
+} else {
+  console.log("❌ Error: El archivo no se creó correctamente");
+}

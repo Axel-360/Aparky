@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:deploy": "tsc -b && vite build && node post-build.cjs",
+    "postbuild": "node post-build.cjs",
+    "create-sw": "node create-sw.cjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -36,7 +39,9 @@
     "sonner": "^2.0.5",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.10",
-    "vite-plugin-pwa": "^1.0.0"
+    "vite-plugin-pwa": "^1.0.0",
+    "workbox-precaching": "^7.3.0",
+    "workbox-window": "^7.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

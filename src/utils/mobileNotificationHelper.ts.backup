@@ -1,0 +1,654 @@
+// src/utils/mobileNotificationHelper.ts - Versión corregida
+class MobileNotificationHelper {
+  private pendingSchedules = new Map<string, ScheduledNotification>();
+  private serviceWorkerController: ServiceWorker | null = null;
+  private keepAliveInterval: NodeJS.Timeout | null = null;
+  private lastVisibilityChange = Date.now();
+  private visibilityObserver: (() => void) | null = null;
+
+  // Detección de dispositivo
+  private isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  private isAndroid = /Android/.test(navigator.userAgent);
+  private isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+
+  constructor() {
+    console.log("📱 Inicializando MobileNotificationHelper mejorado");
+    this.init();
+  }
+
+  private async init() {
+    await this.setupServiceWorkerConnection();
+    this.setupVisibilityHandlers();
+    this.setupPageLifecycleHandlers();
+    this.restoreScheduledNotifications();
+
+    // Configurar keep-alive para iOS
+    if (this.isIOS) {
+      this.startKeepAlive();
+    }
+  }
+
+  /**
+   * 🔥 MEJORADO: Configurar conexión robusta con Service Worker
+   */
+  private async setupServiceWorkerConnection() {
+    if (!("serviceWorker" in navigator)) {
+      console.warn("⚠️ Service Worker no disponible");
+      return;
+    }
+
+    try {
+      // Esperar a que el SW esté listo
+      const registration = await navigator.serviceWorker.ready;
+      this.serviceWorkerController = registration.active;
+
+      // Configurar comunicación bidireccional
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        this.handleServiceWorkerMessage(event.data);
+      });
+
+      // Manejar cambios de controller
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        console.log("🔄 Service Worker controller cambió");
+        this.serviceWorkerController = navigator.serviceWorker.controller;
+      });
+
+      console.log("✅ Conexión con Service Worker establecida");
+    } catch (error) {
+      console.error("❌ Error conectando con Service Worker:", error);
+    }
+  }
+
+  /**
+   * 🔥 NUEVO: Manejo robusto de visibilidad
+   */
+  private setupVisibilityHandlers() {
+    const handleVisibilityChange = () => {
+      const now = Date.now();
+      const timeSinceLastChange = now - this.lastVisibilityChange;
+      this.lastVisibilityChange = now;
+
+      if (document.hidden) {
+        console.log("📱 App pasando a segundo plano");
+        this.onAppBackground();
+      } else {
+        console.log("📱 App volviendo al primer plano");
+        this.onAppForeground(timeSinceLastChange);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", () => this.onAppBackground());
+    window.addEventListener("pageshow", () => this.onAppForeground(0));
+
+    // Manejar pérdida de focus
+    window.addEventListener("blur", () => this.onAppBackground());
+    window.addEventListener("focus", () => this.onAppForeground(0));
+
+    this.visibilityObserver = handleVisibilityChange;
+  }
+
+  /**
+   * 🔥 NUEVO: Configurar handlers del ciclo de vida de la página
+   */
+  private setupPageLifecycleHandlers() {
+    // Manejar cierre/recarga de página
+    window.addEventListener("beforeunload", () => {
+      this.transferAllNotificationsToSW();
+      this.saveNotificationState();
+    });
+
+    // Manejar cambios de red
+    window.addEventListener("online", () => {
+      console.log("📱 Conexión restaurada - sincronizando con SW");
+      setTimeout(() => this.syncWithServiceWorker(), 1000);
+    });
+
+    window.addEventListener("offline", () => {
+      console.log("📱 Sin conexión - modo offline");
+    });
+  }
+
+  /**
+   * 🔥 MEJORADO: Keep-alive específico para iOS
+   */
+  private startKeepAlive() {
+    if (this.keepAliveInterval) return;
+
+    this.keepAliveInterval = setInterval(() => {
+      // Ping silencioso cada 25 segundos
+      if (this.serviceWorkerController) {
+        this.serviceWorkerController.postMessage({
+          type: "KEEP_ALIVE_PING",
+          timestamp: Date.now(),
+        });
+      }
+
+      // Verificar notificaciones pendientes
+      if (this.pendingSchedules.size > 0) {
+        console.log(`📱 Keep-alive: ${this.pendingSchedules.size} notificaciones pendientes`);
+      }
+    }, 25000);
+  }
+
+  private stopKeepAlive() {
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
+    }
+  }
+
+  /**
+   * 🔥 MEJORADO: Transferencia inteligente al Service Worker
+   */
+  private onAppBackground() {
+    console.log("📱 Activando modo segundo plano");
+
+    // Transferir TODAS las notificaciones al SW inmediatamente
+    this.transferAllNotificationsToSW();
+
+    // Guardar estado local como backup
+    this.saveNotificationState();
+
+    // Activar keep-alive para iOS
+    if (this.isIOS && !this.keepAliveInterval) {
+      this.startKeepAlive();
+    }
+  }
+
+  /**
+   * 🔥 NUEVO: Manejo inteligente del regreso a primer plano
+   */
+  private onAppForeground(timeAway: number) {
+    console.log(`📱 Volviendo a primer plano (${timeAway}ms ausente)`);
+
+    // Si estuvo mucho tiempo ausente, verificar notificaciones perdidas
+    if (timeAway > 30000) {
+      // 30 segundos
+      setTimeout(() => {
+        this.checkMissedNotifications();
+        this.syncWithServiceWorker();
+      }, 1000);
+    }
+
+    // Reactivar notificaciones locales
+    this.reactivateLocalNotifications();
+  }
+
+  /**
+   * 🔥 NUEVO: Transferir TODAS las notificaciones al SW
+   */
+  private transferAllNotificationsToSW() {
+    if (!this.serviceWorkerController) {
+      console.warn("⚠️ No hay conexión con Service Worker para transferir");
+      return;
+    }
+
+    console.log(`📱 Transfiriendo ${this.pendingSchedules.size} notificaciones al SW`);
+
+    for (const [notificationId, notification] of this.pendingSchedules) {
+      const delay = Math.max(0, notification.scheduledTime - Date.now());
+
+      this.serviceWorkerController.postMessage({
+        type: "SCHEDULE_NOTIFICATION",
+        id: notificationId,
+        delay,
+        title: notification.title,
+        body: notification.body,
+        options: notification.options || {},
+      });
+    }
+
+    // Limpiar notificaciones locales después de transferir
+    this.pendingSchedules.clear();
+  }
+
+  /**
+   * 🔥 NUEVO: Reactivar notificaciones locales cuando la app vuelve
+   */
+  private reactivateLocalNotifications() {
+    // Solo si no hay Service Worker o falló la transferencia
+    if (this.serviceWorkerController) {
+      // El SW maneja las notificaciones, solo sync
+      this.syncWithServiceWorker();
+      return;
+    }
+
+    console.log("📱 Reactivando notificaciones locales (sin SW)");
+
+    // Restaurar desde backup si es necesario
+    this.restoreScheduledNotifications();
+  }
+
+  /**
+   * 🔥 MEJORADO: Sincronización bidireccional con SW
+   */
+  private async syncWithServiceWorker() {
+    if (!this.serviceWorkerController) return;
+
+    try {
+      // Solicitar estado de la cola del SW
+      const messageChannel = new MessageChannel();
+
+      messageChannel.port1.onmessage = (event) => {
+        const { type, notifications } = event.data;
+
+        if (type === "QUEUE_STATUS") {
+          console.log(`📱 SW tiene ${notifications.length} notificaciones en cola`);
+
+          // Actualizar estado local basado en SW
+          this.updateLocalQueueFromSW(notifications);
+        }
+      };
+
+      this.serviceWorkerController.postMessage({ type: "GET_QUEUE_STATUS" }, [messageChannel.port2]);
+    } catch (error) {
+      console.error("❌ Error sincronizando con SW:", error);
+    }
+  }
+
+  /**
+   * 🔥 NUEVO: Actualizar cola local basada en el SW
+   */
+  private updateLocalQueueFromSW(swNotifications: any[]) {
+    // Limpiar cola local
+    this.pendingSchedules.clear();
+
+    // Restaurar desde SW
+    for (const notif of swNotifications) {
+      if (!notif.processed && notif.scheduledTime > Date.now()) {
+        this.pendingSchedules.set(notif.id, {
+          id: notif.id,
+          title: notif.title,
+          body: notif.body,
+          scheduledTime: notif.scheduledTime,
+          options: notif.options || {},
+        });
+      }
+    }
+
+    console.log(`📱 Cola local actualizada: ${this.pendingSchedules.size} notificaciones`);
+  }
+
+  /**
+   * 🔥 MEJORADO: Verificar notificaciones perdidas
+   */
+  private checkMissedNotifications() {
+    const now = Date.now();
+    const missedNotifications: any[] = [];
+
+    // Verificar en cola local
+    for (const [, notification] of this.pendingSchedules) {
+      if (notification.scheduledTime <= now) {
+        missedNotifications.push(notification);
+      }
+    }
+
+    if (missedNotifications.length > 0) {
+      console.log(`📱 Encontradas ${missedNotifications.length} notificaciones perdidas`);
+
+      // Mostrar notificaciones recuperadas
+      for (const notification of missedNotifications) {
+        this.showRecoveredNotification(notification);
+        // 🔥 CORREGIDO: Usar el ID correcto para eliminar
+        this.pendingSchedules.delete(notification.id);
+      }
+    }
+  }
+
+  /**
+   * 🔥 NUEVO: Mostrar notificación recuperada con indicación
+   */
+  private async showRecoveredNotification(notification: ScheduledNotification) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        const notif = new Notification(`⏰ ${notification.title}`, {
+          body: `${notification.body}\n(Notificación recuperada)`,
+          icon: "/icons/pwa-192x192.png",
+          badge: "/icons/pwa-64x64.png",
+          tag: notification.id + "-recovered",
+          requireInteraction: true,
+          // vibrate: [300, 100, 300, 100, 300],
+        });
+
+        notif.onclick = () => {
+          window.focus();
+          notif.close();
+        };
+
+        // Auto-cerrar después de 10 segundos
+        setTimeout(() => notif.close(), 10000);
+
+        console.log("✅ Notificación recuperada mostrada:", notification.title);
+      } catch (error) {
+        console.error("❌ Error mostrando notificación recuperada:", error);
+      }
+    }
+  }
+
+  /**
+   * 🔥 NUEVO: Guardar estado con más información
+   */
+  private saveNotificationState() {
+    try {
+      const state = {
+        timestamp: Date.now(),
+        deviceInfo: {
+          isIOS: this.isIOS,
+          isAndroid: this.isAndroid,
+          isStandalone: this.isStandalone,
+          userAgent: navigator.userAgent,
+        },
+        notifications: Array.from(this.pendingSchedules.entries()).map(([id, notif]) => ({
+          id,
+          title: notif.title,
+          body: notif.body,
+          scheduledTime: notif.scheduledTime,
+          remainingTime: notif.scheduledTime - Date.now(),
+          options: notif.options,
+        })),
+      };
+
+      localStorage.setItem("mobile-notification-backup", JSON.stringify(state));
+      console.log("💾 Estado completo guardado");
+    } catch (error) {
+      console.error("❌ Error guardando estado:", error);
+    }
+  }
+
+  /**
+   * 🔥 MEJORADO: Restaurar con validación
+   */
+  private restoreScheduledNotifications() {
+    try {
+      const saved = localStorage.getItem("mobile-notification-backup");
+      if (!saved) return;
+
+      const state = JSON.parse(saved);
+      const now = Date.now();
+      let restoredCount = 0;
+
+      console.log("📱 Restaurando desde backup local");
+
+      for (const notif of state.notifications || []) {
+        // Solo restaurar notificaciones futuras
+        if (notif.scheduledTime > now) {
+          this.pendingSchedules.set(notif.id, {
+            id: notif.id,
+            title: notif.title,
+            body: notif.body,
+            scheduledTime: notif.scheduledTime,
+            options: notif.options || {},
+          });
+          restoredCount++;
+        }
+      }
+
+      console.log(`📱 ${restoredCount} notificaciones restauradas`);
+
+      // Limpiar backup después de restaurar
+      localStorage.removeItem("mobile-notification-backup");
+    } catch (error) {
+      console.error("❌ Error restaurando notificaciones:", error);
+    }
+  }
+
+  /**
+   * 🔥 NUEVO: Manejar mensajes del Service Worker
+   */
+  private handleServiceWorkerMessage(data: any) {
+    console.log("📱 Mensaje del SW:", data);
+
+    switch (data.type) {
+      case "SHOW_IN_APP_NOTIFICATION":
+        // El SW detectó que la app está visible y envía la notificación para mostrar en la app
+        this.showInAppNotification(data.notification);
+        break;
+
+      case "NOTIFICATION_PROCESSED":
+        // El SW procesó una notificación, limpiar de cola local
+        this.pendingSchedules.delete(data.notificationId);
+        break;
+
+      case "QUEUE_STATUS":
+        this.updateLocalQueueFromSW(data.notifications);
+        break;
+
+      default:
+        console.log("📱 Mensaje SW no reconocido:", data.type);
+    }
+  }
+
+  /**
+   * 🔥 NUEVO: Mostrar notificación dentro de la app
+   */
+  private showInAppNotification(notification: any) {
+    // Disparar evento personalizado para que la UI lo maneje
+    window.dispatchEvent(
+      new CustomEvent("inAppNotification", {
+        detail: notification,
+      })
+    );
+
+    console.log("📱 Notificación mostrada en la app:", notification.title);
+  }
+
+  // ==========================================================================
+  // MÉTODOS PÚBLICOS
+  // ==========================================================================
+
+  /**
+   * 🔥 MEJORADO: Programar notificación con lógica inteligente
+   */
+  public async scheduleNotification(
+    notificationId: string,
+    scheduledTime: number,
+    title: string,
+    body: string,
+    options?: any
+  ): Promise<void> {
+    const delay = scheduledTime - Date.now();
+
+    if (delay <= 0) {
+      console.warn("⚠️ Tiempo de notificación ya pasó");
+      return;
+    }
+
+    console.log(`📱 Programando notificación: ${title} en ${delay}ms`);
+
+    const notification: ScheduledNotification = {
+      id: notificationId,
+      title,
+      body,
+      scheduledTime,
+      options: options || {},
+    };
+
+    // Guardar en cola local
+    this.pendingSchedules.set(notificationId, notification);
+
+    // Decidir dónde programar la notificación
+    if (document.hidden || !document.hasFocus()) {
+      // App en background - programar en Service Worker
+      this.scheduleInServiceWorker(notification);
+    } else {
+      // App en foreground - programar localmente
+      this.scheduleLocalNotification(notification);
+    }
+
+    // Guardar estado como backup
+    this.saveNotificationState();
+  }
+
+  /**
+   * 🔥 NUEVO: Programar en Service Worker
+   */
+  private scheduleInServiceWorker(notification: ScheduledNotification) {
+    if (!this.serviceWorkerController) {
+      console.warn("⚠️ No hay SW disponible, usando fallback local");
+      this.scheduleLocalNotification(notification);
+      return;
+    }
+
+    const delay = notification.scheduledTime - Date.now();
+
+    this.serviceWorkerController.postMessage({
+      type: "SCHEDULE_NOTIFICATION",
+      id: notification.id,
+      delay,
+      title: notification.title,
+      body: notification.body,
+      options: notification.options,
+    });
+
+    console.log(`📱 Notificación programada en SW: ${notification.id}`);
+  }
+
+  /**
+   * 🔥 NUEVO: Programar notificación local
+   */
+  private scheduleLocalNotification(notification: ScheduledNotification) {
+    const delay = notification.scheduledTime - Date.now();
+
+    setTimeout(async () => {
+      // Verificar si la notificación sigue siendo válida
+      if (!this.pendingSchedules.has(notification.id)) {
+        console.log("📱 Notificación cancelada o ya procesada");
+        return;
+      }
+
+      try {
+        // Verificar si la app está visible
+        if (!document.hidden && document.hasFocus()) {
+          // Mostrar en la app
+          this.showInAppNotification(notification);
+        } else {
+          // Mostrar notificación del sistema
+          await this.showSystemNotification(notification);
+        }
+
+        // Limpiar de la cola
+        this.pendingSchedules.delete(notification.id);
+      } catch (error) {
+        console.error("❌ Error mostrando notificación local:", error);
+      }
+    }, delay);
+
+    console.log(`📱 Notificación local programada: ${notification.id} en ${delay}ms`);
+  }
+
+  /**
+   * 🔥 NUEVO: Mostrar notificación del sistema
+   */
+  private async showSystemNotification(notification: ScheduledNotification) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      const notif = new Notification(notification.title, {
+        body: notification.body,
+        icon: "/icons/pwa-192x192.png",
+        badge: "/icons/pwa-64x64.png",
+        tag: notification.id,
+        requireInteraction: true,
+        vibrate: [300, 100, 300],
+        ...notification.options,
+      });
+
+      notif.onclick = () => {
+        window.focus();
+        notif.close();
+      };
+
+      // Auto-cerrar después de 15 segundos
+      setTimeout(() => notif.close(), 15000);
+    }
+  }
+
+  /**
+   * 🔥 MEJORADO: Cancelar notificación
+   */
+  public cancelNotification(notificationId: string): void {
+    console.log(`📱 Cancelando notificación: ${notificationId}`);
+
+    // Limpiar de cola local
+    this.pendingSchedules.delete(notificationId);
+
+    // Cancelar en Service Worker
+    if (this.serviceWorkerController) {
+      this.serviceWorkerController.postMessage({
+        type: "CANCEL_NOTIFICATION",
+        id: notificationId,
+      });
+    }
+
+    // Actualizar backup
+    this.saveNotificationState();
+  }
+
+  /**
+   * 🔥 NUEVO: Obtener información de debug
+   */
+  public getDebugInfo(): any {
+    return {
+      deviceInfo: {
+        isIOS: this.isIOS,
+        isAndroid: this.isAndroid,
+        isStandalone: this.isStandalone,
+        userAgent: navigator.userAgent,
+      },
+      systemInfo: {
+        hasServiceWorker: !!this.serviceWorkerController,
+        hasNotificationPermission: Notification.permission === "granted",
+        isOnline: navigator.onLine,
+        isVisible: !document.hidden,
+        hasFocus: document.hasFocus(),
+      },
+      queueInfo: {
+        localPendingCount: this.pendingSchedules.size,
+        notifications: Array.from(this.pendingSchedules.values()).map((n) => ({
+          id: n.id,
+          title: n.title,
+          scheduledFor: new Date(n.scheduledTime).toLocaleString(),
+          remainingMs: n.scheduledTime - Date.now(),
+        })),
+      },
+    };
+  }
+
+  /**
+   * 🔥 NUEVO: Forzar sincronización
+   */
+  public async forcSync(): Promise<void> {
+    console.log("📱 Forzando sincronización con Service Worker");
+    await this.syncWithServiceWorker();
+  }
+
+  /**
+   * 🔥 NUEVO: Limpiar todo
+   */
+  public cleanup(): void {
+    console.log("📱 Limpiando MobileNotificationHelper");
+
+    this.stopKeepAlive();
+    this.pendingSchedules.clear();
+
+    if (this.visibilityObserver) {
+      document.removeEventListener("visibilitychange", this.visibilityObserver);
+    }
+
+    localStorage.removeItem("mobile-notification-backup");
+  }
+}
+
+// Interfaz para las notificaciones programadas
+interface ScheduledNotification {
+  id: string;
+  title: string;
+  body: string;
+  scheduledTime: number;
+  options?: any;
+}
+
+// Exportar instancia singleton
+export const mobileNotificationHelper = new MobileNotificationHelper();
+
+// Exportar para debug
+(window as any).mobileNotificationHelper = mobileNotificationHelper;
