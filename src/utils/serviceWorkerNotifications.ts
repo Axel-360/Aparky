@@ -452,16 +452,30 @@ export const scheduleNotificationInSW = async (
       return;
     }
 
-    serviceWorkerRegistration.active.postMessage({
-      type: "SCHEDULE_NOTIFICATION",
-      id,
-      delay,
-      title,
-      body,
-      options,
-    });
+    // 🔥 CORREGIDO: Calcular scheduledTime y usar formato plano
+    const scheduledTime = Date.now() + delay;
 
-    console.log(`⏰ Notificación programada en SW: ${id}`);
+    const messageData = {
+      type: "SCHEDULE_NOTIFICATION",
+      // ✅ Formato correcto que espera el SW:
+      id: id,
+      title: title,
+      body: body,
+      scheduledTime: scheduledTime, // ✅ Timestamp absoluto, no delay relativo
+      icon: options?.icon || "/icons/pwa-192x192.png",
+      badge: options?.badge || "/icons/pwa-64x64.png",
+      vibrate: options?.vibrate || [300, 100, 300],
+      tag: options?.tag || id,
+      requireInteraction: options?.requireInteraction ?? true,
+      data: options?.data || {},
+      // ❌ NO enviar: delay, options anidado, type dentro de data
+    };
+
+    console.log(`📨 Enviando al SW (formato corregido):`, messageData);
+
+    serviceWorkerRegistration.active.postMessage(messageData);
+
+    console.log(`⏰ Notificación programada en SW: ${id} para ${new Date(scheduledTime).toLocaleString()}`);
   } catch (error) {
     console.error("❌ Error programando notificación en SW:", error);
   }

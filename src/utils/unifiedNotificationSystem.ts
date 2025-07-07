@@ -1,8 +1,4 @@
-// src/utils/unifiedNotificationSystem.ts - VERSIÓN CONECTADA CON TU SW
-/**
- * 🔥 SISTEMA UNIFICADO DE NOTIFICACIONES MÓVILES - CONECTADO CON SW EXISTENTE
- * Ahora se comunica con tu Service Worker para notificaciones programadas
- */
+// src/utils/unifiedNotificationSystem.ts - VERSIÓN CORREGIDA PARA TU SW
 
 interface NotificationConfig {
   id: string;
@@ -40,9 +36,6 @@ class UnifiedNotificationSystem {
     console.log("📱 Capacidades detectadas:", this.capabilities);
   }
 
-  /**
-   * Detectar capacidades del dispositivo
-   */
   private detectCapabilities(): DeviceCapabilities {
     const userAgent = navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(userAgent);
@@ -72,18 +65,13 @@ class UnifiedNotificationSystem {
     return true;
   }
 
-  /**
-   * Configurar listeners de eventos
-   */
   private setupEventListeners(): void {
-    // Listener para mensajes del Service Worker
     if (this.capabilities.hasServiceWorker) {
       navigator.serviceWorker?.addEventListener("message", (event) => {
         this.handleServiceWorkerMessage(event);
       });
     }
 
-    // Listener para cuando la app vuelve del background
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) {
         this.handleAppResumed();
@@ -91,12 +79,8 @@ class UnifiedNotificationSystem {
     });
   }
 
-  /**
-   * Manejar mensajes del Service Worker
-   */
   private handleServiceWorkerMessage(event: MessageEvent): void {
     const { type, data } = event.data || {};
-
     console.log("📨 Mensaje del SW:", type, data);
 
     switch (type) {
@@ -112,13 +96,9 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Manejar cuando la app vuelve del background
-   */
   private handleAppResumed(): void {
     console.log("📱 App volvió del background - verificando estado");
 
-    // Sincronizar con el SW
     if (this.registration?.active) {
       this.registration.active.postMessage({
         type: "GET_QUEUE_STATUS",
@@ -126,9 +106,6 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Inicializar el sistema con Service Worker
-   */
   public async initialize(): Promise<boolean> {
     if (this.isInitialized) {
       console.log("✅ Sistema ya inicializado");
@@ -138,20 +115,17 @@ class UnifiedNotificationSystem {
     console.log("🚀 Inicializando sistema de notificaciones...");
 
     try {
-      // 1. Verificar soporte básico
       if (!this.capabilities.hasNotificationAPI) {
         console.warn("❌ API de notificaciones no disponible");
         return false;
       }
 
-      // 2. Solicitar permisos
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) {
         console.warn("❌ Permisos de notificación denegados");
         return false;
       }
 
-      // 3. Inicializar Service Worker si está disponible
       if (this.capabilities.hasServiceWorker) {
         await this.initializeServiceWorker();
       }
@@ -166,29 +140,23 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Inicializar Service Worker existente
-   */
   private async initializeServiceWorker(): Promise<void> {
     try {
-      // Buscar Service Worker existente
       const registration = await navigator.serviceWorker.getRegistration();
       this.registration = registration || null;
 
       if (this.registration) {
         console.log("✅ Service Worker encontrado:", this.registration.scope);
 
-        // Esperar a que esté activo
         if (!this.registration.active) {
           await navigator.serviceWorker.ready;
           const updatedRegistration = await navigator.serviceWorker.getRegistration();
           this.registration = updatedRegistration || null;
         }
 
-        // Enviar mensaje de inicialización al SW (formato simplificado)
         if (this.registration?.active) {
           this.registration.active.postMessage({
-            type: "DEBUG_INFO", // Usar un mensaje que tu SW ya reconoce
+            type: "DEBUG_INFO",
           });
         }
       } else {
@@ -200,9 +168,6 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Solicitar permisos de notificación
-   */
   private async requestPermissions(): Promise<boolean> {
     if (Notification.permission === "granted") {
       console.log("✅ Permisos ya concedidos");
@@ -234,9 +199,6 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Programar notificación con SW o fallback
-   */
   public async scheduleNotification(config: NotificationConfig): Promise<boolean> {
     if (!this.isInitialized) {
       console.log("⚠️ Sistema no inicializado, inicializando...");
@@ -254,17 +216,17 @@ class UnifiedNotificationSystem {
     const delay = config.delay || 0;
 
     if (delay === 0) {
-      // Mostrar inmediatamente
       return this.showNotification(config);
     } else {
-      // Programar con Service Worker o fallback
-      return this.scheduleWithServiceWorker(config) || this.scheduleWithTimeout(config);
+      const swSuccess = await this.scheduleWithServiceWorker(config);
+      if (!swSuccess) {
+        return this.scheduleWithTimeout(config);
+      }
+      return swSuccess;
     }
   }
 
-  /**
-   * Programar notificación con Service Worker
-   */
+  // 🔥 CORREGIDO: Formato compatible con tu SW
   private async scheduleWithServiceWorker(config: NotificationConfig): Promise<boolean> {
     if (!this.registration?.active) {
       console.log("⚠️ SW no disponible, usando fallback");
@@ -272,24 +234,27 @@ class UnifiedNotificationSystem {
     }
 
     try {
-      // 🔥 CORREGIDO: Formato compatible con tu SW existente
-      this.registration.active.postMessage({
+      const scheduledTime = Date.now() + (config.delay || 0);
+
+      // 🔥 FORMATO CORREGIDO: Enviar datos en el formato que espera el SW
+      const messageData = {
         type: "SCHEDULE_NOTIFICATION",
-        // Usar el formato que espera tu SW
+        // Datos directos, no anidados
         id: config.id,
         title: config.title,
         body: config.body,
-        scheduledTime: Date.now() + (config.delay || 0),
+        scheduledTime: scheduledTime,
         icon: config.icon || "/icons/pwa-192x192.png",
         badge: config.badge || "/icons/pwa-64x64.png",
         vibrate: config.vibrate || [300, 100, 300],
         tag: config.tag || config.id,
         requireInteraction: config.requireInteraction ?? true,
-        data: config.data,
-        processed: false,
-        retryCount: 0,
-        createdAt: Date.now(),
-      });
+        data: config.data || {},
+      };
+
+      console.log(`📨 Enviando mensaje al SW:`, messageData);
+
+      this.registration.active.postMessage(messageData);
 
       console.log(`✅ Notificación enviada a SW para programación: ${config.id} en ${config.delay}ms`);
       return true;
@@ -299,9 +264,6 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Programar notificación con setTimeout (fallback)
-   */
   private scheduleWithTimeout(config: NotificationConfig): boolean {
     try {
       const delay = config.delay || 0;
@@ -320,23 +282,16 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Mostrar notificación inmediatamente
-   */
   private async showNotification(config: NotificationConfig): Promise<boolean> {
     try {
-      // Decidir qué tipo de notificación usar
       if (this.registration && this.capabilities.canShowPersistent) {
-        // Usar notificación persistente
         return this.showPersistentNotification(config);
       } else {
-        // Usar notificación básica
         return this.showBasicNotification(config);
       }
     } catch (error) {
       console.error("Error mostrando notificación:", error);
 
-      // Fallback: intentar el otro método
       try {
         if (this.registration) {
           return this.showPersistentNotification(config);
@@ -350,9 +305,6 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Mostrar notificación persistente (Service Worker)
-   */
   private async showPersistentNotification(config: NotificationConfig): Promise<boolean> {
     if (!this.registration) {
       throw new Error("No hay Service Worker disponible");
@@ -365,7 +317,7 @@ class UnifiedNotificationSystem {
         badge: config.badge || "/icons/pwa-64x64.png",
         tag: config.tag || config.id,
         requireInteraction: config.requireInteraction ?? true,
-        vibrate: config.vibrate || [300, 100, 300],
+        vibrate: config.vibrate || [200, 100, 200],
         data: { id: config.id, ...config.data },
         timestamp: Date.now(),
         actions: [
@@ -382,12 +334,8 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Mostrar notificación básica (solo si no hay SW)
-   */
   private showBasicNotification(config: NotificationConfig): boolean {
     try {
-      // Verificar que realmente no hay SW activo
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         throw new Error("Service Worker activo - usar notificaciones persistentes");
       }
@@ -419,13 +367,9 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Cancelar notificación
-   */
   public cancelNotification(id: string): void {
     console.log(`❌ Cancelando notificación: ${id}`);
 
-    // Cancelar timeout si existe
     const timeoutId = this.pendingNotifications.get(id);
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -433,19 +377,15 @@ class UnifiedNotificationSystem {
       console.log(`✅ Timeout cancelado: ${id}`);
     }
 
-    // Cancelar en Service Worker
     if (this.registration?.active) {
       this.registration.active.postMessage({
         type: "CANCEL_NOTIFICATION",
-        id: id, // Formato directo que espera tu SW
+        id: id, // Formato que espera tu SW
       });
       console.log(`📨 Cancelación enviada a SW: ${id}`);
     }
   }
 
-  /**
-   * Test del sistema con mejor detección
-   */
   public async testNotification(): Promise<boolean> {
     const testConfig: NotificationConfig = {
       id: `test-${Date.now()}`,
@@ -453,35 +393,43 @@ class UnifiedNotificationSystem {
       body: `Prueba realizada a las ${new Date().toLocaleTimeString()}. ${
         this.registration ? "Usando SW" : "Modo básico"
       }`,
+      delay: 0,
       vibrate: [300, 100, 300],
       requireInteraction: false,
     };
 
-    return this.scheduleNotification(testConfig);
+    try {
+      const success = await this.scheduleNotification(testConfig);
+      if (success) {
+        console.log("✅ Test de notificación exitoso");
+        return true;
+      } else {
+        console.error("❌ Test de notificación falló");
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Error en test de notificación:", error);
+      return false;
+    }
   }
 
-  /**
-   * Mostrar instrucciones específicas del dispositivo
-   */
   private showPermissionInstructions(): void {
-    const { isIOS, isAndroid, isPWA } = this.capabilities;
+    const { isIOS, isAndroid } = this.capabilities;
 
-    if (isIOS && !isPWA) {
+    if (isIOS) {
       console.warn(`
-🍎 INSTRUCCIONES PARA iOS:
-1. Abre esta página en Safari (no Chrome)
-2. Toca el botón de compartir
-3. Selecciona "Añadir a pantalla de inicio"
-4. Abre la app desde el icono instalado
-5. Acepta los permisos de notificación
+📱 INSTRUCCIONES PARA iOS:
+1. Ve a Configuración > Safari > Sitios web > Notificaciones
+2. Encuentra esta app y cambia a "Permitir"
+3. Si es PWA: Configuración > Notificaciones > [Nombre de la app]
       `);
     } else if (isAndroid) {
       console.warn(`
-🤖 INSTRUCCIONES PARA ANDROID:
-1. Toca "Permitir" cuando aparezca el diálogo
-2. Si ya fue denegado, ve a Configuración del navegador
-3. Busca "Notificaciones" o "Permisos del sitio"
-4. Permite las notificaciones para este sitio
+📱 INSTRUCCIONES PARA ANDROID:
+1. Toca el ícono de candado/información en la barra de direcciones
+2. Activa "Notificaciones"
+3. O ve a Configuración > Sitios > Notificaciones > 
+   Permite las notificaciones para este sitio
       `);
     } else {
       console.warn(`
@@ -493,9 +441,6 @@ class UnifiedNotificationSystem {
     }
   }
 
-  /**
-   * Obtener estado actual del sistema
-   */
   public getSystemStatus() {
     return {
       initialized: this.isInitialized,
@@ -509,9 +454,6 @@ class UnifiedNotificationSystem {
     };
   }
 
-  /**
-   * Obtener recomendaciones para el dispositivo actual
-   */
   public getRecommendations(): string[] {
     const { isIOS, isAndroid, isPWA, canSchedule } = this.capabilities;
     const recommendations: string[] = [];
@@ -540,19 +482,14 @@ class UnifiedNotificationSystem {
     return recommendations;
   }
 
-  /**
-   * Limpiar sistema
-   */
   public cleanup(): void {
     console.log("🧹 Limpiando sistema de notificaciones...");
 
-    // Cancelar todos los timeouts
     for (const timeoutId of this.pendingNotifications.values()) {
       clearTimeout(timeoutId);
     }
     this.pendingNotifications.clear();
 
-    // Limpiar en Service Worker
     if (this.registration?.active) {
       this.registration.active.postMessage({
         type: "CLEAR_ALL_NOTIFICATIONS",
@@ -565,10 +502,8 @@ class UnifiedNotificationSystem {
   }
 }
 
-// Exportar instancia singleton
 export const unifiedNotificationSystem = new UnifiedNotificationSystem();
 
-// Hacer disponible globalmente en desarrollo
 if (typeof window !== "undefined") {
   (window as any).unifiedNotificationSystem = unifiedNotificationSystem;
 }

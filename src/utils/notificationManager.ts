@@ -1,10 +1,5 @@
-// src/utils/notificationManager.ts - VERSIÓN CORREGIDA PARA MÓVIL
-import { getUserPreferences } from "./preferences";
-import {
-  registerNotificationSW,
-  showPersistentNotification,
-  isPersistentNotificationSupported,
-} from "./serviceWorkerNotifications";
+// src/utils/notificationManager.ts - VERSIÓN COMPLETAMENTE CORREGIDA
+import { registerNotificationSW, showPersistentNotification } from "./serviceWorkerNotifications";
 
 /**
  * 🔥 SISTEMA DE NOTIFICACIONES CORREGIDO PARA MÓVIL
@@ -14,7 +9,7 @@ class NotificationManager {
   private scheduledNotifications: Map<string, number> = new Map();
   private isServiceWorkerReady: boolean = false;
 
-  // 🔥 NUEVO: Control de estado para evitar duplicados
+  // Control de estado para evitar duplicados
   private notificationStates: Map<
     string,
     {
@@ -26,11 +21,11 @@ class NotificationManager {
     }
   > = new Map();
 
-  // 🔥 NUEVO: Control de visibilidad para evitar disparos prematuros
+  // Control de visibilidad para evitar disparos prematuros
   private appVisible: boolean = !document.hidden;
   private lastVisibilityChange: number = Date.now();
 
-  // 🔥 NUEVO: Detección de dispositivo para estrategias específicas
+  // Detección de dispositivo para estrategias específicas
   private deviceInfo = {
     isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
     isAndroid: /Android/.test(navigator.userAgent),
@@ -38,7 +33,7 @@ class NotificationManager {
     isMobile: /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
   };
 
-  // 🔥 NUEVO: Persistencia en localStorage como backup
+  // Persistencia en localStorage como backup
   private readonly STORAGE_KEY = "notification_timers_backup";
 
   private constructor() {
@@ -56,7 +51,20 @@ class NotificationManager {
   }
 
   /**
-   * 🔥 NUEVO: Configurar event listeners
+   * Inicializar Service Worker
+   */
+  private async initializeServiceWorker(): Promise<void> {
+    try {
+      this.isServiceWorkerReady = await registerNotificationSW();
+      console.log(`🔔 NotificationManager: Service Worker inicializado: ${this.isServiceWorkerReady}`);
+    } catch (error: any) {
+      console.error("❌ Error inicializando Service Worker:", error);
+      this.isServiceWorkerReady = false;
+    }
+  }
+
+  /**
+   * Configurar event listeners
    */
   private setupEventListeners(): void {
     // Escuchar notificaciones desde el SW
@@ -71,7 +79,7 @@ class NotificationManager {
   }
 
   /**
-   * 🔥 NUEVO: Configurar handlers de visibilidad
+   * Configurar handlers de visibilidad
    */
   private setupVisibilityHandlers(): void {
     document.addEventListener("visibilitychange", () => {
@@ -109,12 +117,237 @@ class NotificationManager {
   }
 
   /**
-   * 🔥 NUEVO: Manejar cuando la app pasa a background
+   * Método principal para programar notificaciones
+   */
+  public async scheduleNotification(
+    id: string,
+    delay: number,
+    title: string,
+    body: string,
+    options?: any
+  ): Promise<boolean> {
+    console.log(`📅 Programando notificación: ${id}`);
+    console.log(`⏰ Delay: ${delay}ms (${Math.round(delay / 1000)}s)`);
+    console.log(`📝 Título: ${title}`);
+
+    // Validar parámetros
+    if (!id || typeof delay !== "number" || isNaN(delay) || delay < 0) {
+      console.error(`❌ Parámetros inválidos para notificación ${id}:`, { id, delay, title });
+      return false;
+    }
+
+    // Verificar permisos
+    if (Notification.permission !== "granted") {
+      console.warn("❌ Sin permisos de notificación");
+      return false;
+    }
+
+    // Cancelar notificación existente con el mismo ID
+    this.cancelNotification(id);
+
+    const scheduledTime = Date.now() + delay;
+
+    // Crear estado de notificación
+    this.notificationStates.set(id, {
+      scheduled: true,
+      executed: false,
+      scheduledTime,
+      createdAt: Date.now(),
+    });
+
+    try {
+      // Si el delay es muy pequeño, mostrar inmediatamente
+      if (delay <= 1000) {
+        console.log(`⚡ Mostrando notificación inmediata: ${id}`);
+        return await this.showImmediateNotification(title, body, options);
+      }
+
+      // Preferir Service Worker para delays largos
+      if (this.isServiceWorkerReady && delay > 10000) {
+        console.log(`📱 Enviando a Service Worker: ${id}`);
+        return await this.scheduleWithServiceWorker(id, delay, title, body, options);
+      } else {
+        console.log(`⏰ Programando con timeout local: ${id}`);
+        return this.scheduleWithTimeout(id, delay, title, body, options);
+      }
+    } catch (error: any) {
+      console.error(`❌ Error programando notificación ${id}:`, error);
+      this.notificationStates.delete(id);
+      return false;
+    }
+  }
+
+  /**
+   * Programar con Service Worker usando formato correcto
+   */
+  private async scheduleWithServiceWorker(
+    id: string,
+    delay: number,
+    title: string,
+    body: string,
+    options?: any
+  ): Promise<boolean> {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+
+      if (!registration.active) {
+        console.warn("⚠️ Service Worker no activo");
+        return this.scheduleWithTimeout(id, delay, title, body, options);
+      }
+
+      const scheduledTime = Date.now() + delay;
+
+      // 🔥 FORMATO CORREGIDO: Datos planos que espera el SW
+      const messageData = {
+        type: "SCHEDULE_NOTIFICATION",
+        id: id,
+        title: title,
+        body: body,
+        scheduledTime: scheduledTime, // ✅ Timestamp absoluto válido
+        icon: options?.icon || "/icons/pwa-192x192.png",
+        badge: options?.badge || "/icons/pwa-64x64.png",
+        vibrate: options?.vibrate || [300, 100, 300],
+        tag: options?.tag || id,
+        requireInteraction: options?.requireInteraction ?? true,
+        data: options?.data || {},
+      };
+
+      console.log(`📨 Enviando a SW (notificationManager): ${id}`, messageData);
+
+      registration.active.postMessage(messageData);
+
+      // Marcar como transferido al SW
+      const state = this.notificationStates.get(id);
+      if (state) {
+        state.transferredToSW = true;
+      }
+
+      console.log(`✅ Notificación enviada a SW para programación: ${id} en ${delay}ms`);
+      return true;
+    } catch (error: any) {
+      console.error(`❌ Error enviando a Service Worker: ${error}`);
+      return this.scheduleWithTimeout(id, delay, title, body, options);
+    }
+  }
+
+  /**
+   * Programar con timeout local
+   */
+  private scheduleWithTimeout(id: string, delay: number, title: string, body: string, options?: any): boolean {
+    try {
+      console.log(`⏰ Programando timeout local: ${id} en ${delay}ms`);
+
+      const timeoutId = window.setTimeout(async () => {
+        console.log(`🔔 Ejecutando notificación local: ${id}`);
+
+        try {
+          await this.showImmediateNotification(title, body, options);
+          this.markNotificationAsExecuted(id);
+        } catch (error: any) {
+          console.error(`❌ Error mostrando notificación ${id}:`, error);
+        }
+
+        this.scheduledNotifications.delete(id);
+      }, delay);
+
+      this.scheduledNotifications.set(id, timeoutId);
+      console.log(`✅ Timeout programado: ${id}`);
+      return true;
+    } catch (error: any) {
+      console.error(`❌ Error programando timeout: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Mostrar notificación inmediata
+   */
+  private async showImmediateNotification(title: string, body: string, options?: any): Promise<boolean> {
+    try {
+      if (this.isServiceWorkerReady) {
+        // Usar notificación persistente si está disponible
+        await showPersistentNotification(title, body, {
+          icon: options?.icon || "/icons/pwa-192x192.png",
+          badge: options?.badge || "/icons/pwa-64x64.png",
+          tag: options?.tag,
+          requireInteraction: options?.requireInteraction ?? false,
+          vibrate: options?.vibrate || [200, 100, 200],
+          data: options?.data,
+        });
+        console.log(`✅ Notificación persistente mostrada: ${title}`);
+      } else {
+        // Fallback a notificación básica
+        const notification = new Notification(title, {
+          body,
+          icon: options?.icon || "/icons/pwa-192x192.png",
+          badge: options?.badge || "/icons/pwa-64x64.png",
+          tag: options?.tag,
+          requireInteraction: options?.requireInteraction ?? false,
+          vibrate: options?.vibrate || [200, 100, 200],
+          data: options?.data,
+        });
+
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+
+        // Auto-cerrar si no requiere interacción
+        if (!options?.requireInteraction) {
+          setTimeout(() => notification.close(), 8000);
+        }
+
+        console.log(`✅ Notificación básica mostrada: ${title}`);
+      }
+      return true;
+    } catch (error: any) {
+      console.error(`❌ Error mostrando notificación inmediata: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Cancelar notificación
+   */
+  public cancelNotification(id: string): void {
+    console.log(`❌ Cancelando notificación: ${id}`);
+
+    // Cancelar timeout si existe
+    const timeoutId = this.scheduledNotifications.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.scheduledNotifications.delete(id);
+      console.log(`✅ Timeout cancelado: ${id}`);
+    }
+
+    // Cancelar en Service Worker
+    if (this.isServiceWorkerReady) {
+      navigator.serviceWorker.ready
+        .then((registration) => {
+          if (registration.active) {
+            registration.active.postMessage({
+              type: "CANCEL_NOTIFICATION",
+              id: id,
+            });
+            console.log(`📨 Cancelación enviada a SW: ${id}`);
+          }
+        })
+        .catch((error: any) => {
+          console.error(`❌ Error cancelando en SW: ${error}`);
+        });
+    }
+
+    // Limpiar estado
+    this.notificationStates.delete(id);
+  }
+
+  /**
+   * Manejar cuando la app pasa a background
    */
   private onAppBackground(): void {
     console.log("📱 Transfiriendo notificaciones a sistemas background");
 
-    // 🔥 CRÍTICO: En móvil, transferir TODO al SW inmediatamente
+    // En móvil, transferir TODO al SW inmediatamente
     if (this.deviceInfo.isMobile) {
       this.transferAllNotificationsToSW();
     }
@@ -124,7 +357,7 @@ class NotificationManager {
   }
 
   /**
-   * 🔥 NUEVO: Manejar cuando la app vuelve a foreground
+   * Manejar cuando la app vuelve a foreground
    */
   private onAppForeground(): void {
     console.log("📱 App en foreground - sincronizando estado");
@@ -137,7 +370,7 @@ class NotificationManager {
   }
 
   /**
-   * 🔥 CRÍTICO: Transferir TODAS las notificaciones al SW
+   * Transferir TODAS las notificaciones al SW
    */
   private async transferAllNotificationsToSW(): Promise<void> {
     if (!this.isServiceWorkerReady) {
@@ -154,560 +387,185 @@ class NotificationManager {
 
       console.log(`📱 Transfiriendo ${this.notificationStates.size} notificaciones al SW`);
 
-      for (const [id, state] of this.notificationStates) {
+      for (const [notificationId, state] of this.notificationStates) {
         if (state.scheduled && !state.executed && !state.transferredToSW) {
           const delay = Math.max(0, state.scheduledTime - Date.now());
 
-          console.log(`📱 Transfiriendo notificación ${id} al SW (delay: ${delay}ms)`);
+          console.log(`📱 Transfiriendo notificación ${notificationId} al SW (delay: ${delay}ms)`);
 
           // Enviar al SW
           registration.active.postMessage({
             type: "SCHEDULE_NOTIFICATION",
-            id,
-            delay,
+            id: notificationId,
             title: "⏰ ¡Tiempo agotado!",
             body: "Tu temporizador de aparcamiento ha finalizado.",
-            options: {},
+            scheduledTime: state.scheduledTime, // ✅ Usar timestamp absoluto
+            icon: "/icons/pwa-192x192.png",
+            badge: "/icons/pwa-64x64.png",
+            vibrate: [500, 200, 500],
+            tag: notificationId,
+            requireInteraction: true,
+            data: { id: notificationId },
           });
 
           // Cancelar timer local si existe
-          if (this.scheduledNotifications.has(id)) {
-            const timerId = this.scheduledNotifications.get(id)!;
-            window.clearTimeout(timerId);
-            this.scheduledNotifications.delete(id);
+          if (this.scheduledNotifications.has(notificationId)) {
+            const timerId = this.scheduledNotifications.get(notificationId)!;
+            clearTimeout(timerId);
+            this.scheduledNotifications.delete(notificationId);
           }
 
-          // Marcar como transferida
+          // Marcar como transferido
           state.transferredToSW = true;
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error transfiriendo notificaciones al SW:", error);
     }
   }
 
   /**
-   * 🔥 NUEVO: Manejar notificaciones dentro de la app
+   * Limpiar notificaciones ejecutadas
    */
-  private handleInAppNotification(notification: any): void {
-    console.log("📱 Mostrando notificación en la app:", notification);
+  private cleanupExecutedNotifications(): void {
+    const now = Date.now();
+    let cleaned = 0;
 
-    // Marcar como ejecutada
-    this.markNotificationAsExecuted(notification.id);
+    for (const [notificationId, state] of this.notificationStates) {
+      if (state.executed || state.scheduledTime < now - 60000) {
+        this.notificationStates.delete(notificationId);
+        cleaned++;
+      }
+    }
 
-    // Crear evento personalizado para la UI
-    window.dispatchEvent(
-      new CustomEvent("showInAppAlert", {
-        detail: {
-          title: notification.title,
-          message: notification.body,
-          type: "notification",
-        },
-      })
-    );
+    if (cleaned > 0) {
+      console.log(`🧹 Limpiadas ${cleaned} notificaciones antiguas`);
+    }
   }
 
   /**
-   * 🔥 NUEVO: Marcar notificación como ejecutada
+   * Sincronizar estados de notificaciones
+   */
+  private syncNotificationStates(): void {
+    const now = Date.now();
+
+    for (const [notificationId, state] of this.notificationStates) {
+      if (state.scheduled && !state.executed && state.scheduledTime <= now) {
+        console.log(`🔔 Notificación ${notificationId} debería haber sido ejecutada`);
+        this.markNotificationAsExecuted(notificationId);
+      }
+    }
+  }
+
+  /**
+   * Marcar notificación como ejecutada
    */
   private markNotificationAsExecuted(id: string): void {
     const state = this.notificationStates.get(id);
     if (state) {
       state.executed = true;
-      console.log(`✅ Notificación ${id} marcada como ejecutada`);
+      console.log(`✅ Notificación marcada como ejecutada: ${id}`);
     }
   }
 
   /**
-   * 🔥 NUEVO: Guardar estado en localStorage
+   * Manejar notificación in-app
+   */
+  private handleInAppNotification(detail: any): void {
+    console.log("📱 Notificación in-app recibida:", detail);
+    this.markNotificationAsExecuted(detail.id);
+  }
+
+  /**
+   * Guardar estado en localStorage
    */
   private saveToStorage(): void {
     try {
-      const backupData = {
-        timestamp: Date.now(),
-        deviceInfo: this.deviceInfo,
-        notifications: Array.from(this.notificationStates.entries()).map(([id, state]) => ({
-          id,
-          scheduled: state.scheduled,
-          executed: state.executed,
-          scheduledTime: state.scheduledTime,
-          createdAt: state.createdAt,
-          transferredToSW: state.transferredToSW,
-          remainingTime: state.scheduledTime - Date.now(),
-        })),
+      const stateData = {
+        notifications: Array.from(this.notificationStates.entries()),
+        lastSaved: Date.now(),
       };
-
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(backupData));
-      console.log(`💾 Estado guardado: ${backupData.notifications.length} notificaciones`);
-    } catch (error) {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(stateData));
+      console.log(`💾 Estado guardado: ${this.notificationStates.size} notificaciones`);
+    } catch (error: any) {
       console.error("❌ Error guardando estado:", error);
     }
   }
 
   /**
-   * 🔥 NUEVO: Restaurar estado desde localStorage
+   * Restaurar estado desde localStorage
    */
   private restoreFromStorage(): void {
     try {
-      const saved = localStorage.getItem(this.STORAGE_KEY);
-      if (!saved) return;
+      const stored = localStorage.getItem(this.STORAGE_KEY);
+      if (stored) {
+        const stateData = JSON.parse(stored);
+        const now = Date.now();
 
-      const backupData = JSON.parse(saved);
-      const now = Date.now();
+        // Solo restaurar notificaciones de las últimas 24 horas
+        const validEntries = stateData.notifications.filter(
+          ([, state]: [string, any]) => state.scheduledTime > now - 86400000
+        );
 
-      console.log(`📱 Restaurando estado desde: ${new Date(backupData.timestamp).toLocaleTimeString()}`);
-
-      for (const notif of backupData.notifications) {
-        // Solo restaurar notificaciones que no han sido ejecutadas y no han expirado
-        if (!notif.executed && notif.scheduledTime > now) {
-          this.notificationStates.set(notif.id, {
-            scheduled: false, // Se re-programará
-            executed: false,
-            scheduledTime: notif.scheduledTime,
-            createdAt: notif.createdAt,
-            transferredToSW: notif.transferredToSW || false,
-          });
-          console.log(
-            `📱 Notificación restaurada: ${notif.id} (en ${Math.round((notif.scheduledTime - now) / 1000)}s)`
-          );
-        }
+        this.notificationStates = new Map(validEntries);
+        console.log(`📱 Restaurado estado desde: ${new Date(stateData.lastSaved).toLocaleTimeString()}`);
+        console.log(`📱 ${this.notificationStates.size} notificaciones restauradas`);
       }
-
-      // Limpiar storage después de restaurar
-      localStorage.removeItem(this.STORAGE_KEY);
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error restaurando estado:", error);
     }
   }
 
   /**
-   * 🔥 NUEVO: Sincronizar estados de notificaciones
-   */
-  private syncNotificationStates(): void {
-    const now = Date.now();
-
-    for (const [id, state] of this.notificationStates) {
-      // Si una notificación debería haber sido ejecutada pero no se marcó como tal
-      if (state.scheduledTime <= now && !state.executed) {
-        console.log(`⚠️ Notificación perdida detectada: ${id}`);
-        // Marcar como ejecutada para evitar duplicados
-        state.executed = true;
-      }
-    }
-  }
-
-  /**
-   * 🔥 NUEVO: Limpiar notificaciones ejecutadas
-   */
-  private cleanupExecutedNotifications(): void {
-    const now = Date.now();
-    const oneHourAgo = now - 60 * 60 * 1000;
-
-    for (const [id, state] of this.notificationStates) {
-      if (state.executed || state.scheduledTime < oneHourAgo) {
-        this.notificationStates.delete(id);
-        this.scheduledNotifications.delete(id);
-        console.log(`🧹 Notificación limpiada: ${id}`);
-      }
-    }
-  }
-
-  /**
-   * Inicializar Service Worker para notificaciones persistentes
-   */
-  private async initializeServiceWorker(): Promise<void> {
-    try {
-      this.isServiceWorkerReady = await registerNotificationSW();
-      console.log("🔔 NotificationManager: Service Worker inicializado:", this.isServiceWorkerReady);
-    } catch (error) {
-      console.error("❌ Error inicializando Service Worker:", error);
-      this.isServiceWorkerReady = false;
-    }
-  }
-
-  /**
-   * 🔥 MEJORADO: Inicialización completa del sistema de notificaciones
+   * Inicializar sistema completo
    */
   public async initialize(): Promise<boolean> {
+    console.log("🚀 Inicializando sistema de notificaciones...");
+
     try {
-      console.log("🚀 Inicializando sistema de notificaciones...");
-
-      if (!this.isSupported()) {
-        console.warn("⚠️ Notificaciones no soportadas en este navegador");
+      // Verificar soporte básico
+      if (!("Notification" in window)) {
+        console.error("❌ Notificaciones no soportadas");
         return false;
       }
 
-      const preferences = getUserPreferences();
-      if (!preferences.notifications) {
-        console.log("📵 Notificaciones desactivadas en preferencias");
+      // Verificar permisos
+      if (Notification.permission !== "granted") {
+        console.warn("⚠️ Permisos de notificación no concedidos");
         return false;
       }
 
-      if (!this.isServiceWorkerReady) {
-        this.isServiceWorkerReady = await registerNotificationSW();
-      }
+      // Inicializar Service Worker
+      await this.initializeServiceWorker();
 
-      let permission = this.getPermissionStatus();
-      if (permission === "default") {
-        permission = await this.requestPermission();
-      }
-
-      const success = permission === "granted";
-
-      // Información específica del dispositivo
-      if (this.deviceInfo.isIOS && !this.deviceInfo.isStandalone) {
-        console.warn("⚠️ iOS: Para notificaciones background, instala la app en pantalla de inicio");
-      }
-
-      console.log("✅ Sistema de notificaciones inicializado:", success);
-      console.log("📱 Dispositivo:", this.deviceInfo);
-
-      return success;
-    } catch (error) {
-      console.error("❌ Error inicializando notificaciones:", error);
+      console.log("✅ Sistema de notificaciones inicializado");
+      return true;
+    } catch (error: any) {
+      console.error("❌ Error inicializando sistema:", error);
       return false;
     }
   }
 
   /**
-   * 🔥 ULTRA CORREGIDO: Programar notificación sin duplicados con soporte background MÓVIL
+   * Test del sistema con mejor detección
    */
-  public async scheduleNotification(
-    id: string,
-    delay: number,
-    title: string,
-    body: string,
-    options?: NotificationOptions
-  ): Promise<void> {
-    const scheduledTime = Date.now() + delay;
-
-    console.log(`⏰ Programando notificación "${id}" para: ${new Date(scheduledTime).toLocaleTimeString()}`);
-
-    // 🔥 VERIFICACIÓN: Evitar duplicados
-    const existingState = this.notificationStates.get(id);
-    if (existingState && existingState.scheduled && !existingState.executed) {
-      console.log(`⚠️ Notificación "${id}" ya está programada, cancelando anterior`);
-      this.cancelNotification(id);
-    }
-
-    // 🔥 VERIFICACIÓN: No programar en el pasado
-    if (scheduledTime <= Date.now()) {
-      console.warn(`❌ No se puede programar notificación en el pasado: ${id}`);
-      return;
-    }
-
-    // Crear estado de tracking
-    this.notificationStates.set(id, {
-      scheduled: true,
-      executed: false,
-      scheduledTime,
-      createdAt: Date.now(),
-      transferredToSW: false,
-    });
-
-    // 🔥 CRÍTICO PARA MÓVIL: Enviar SIEMPRE al SW en dispositivos móviles
-    if (this.deviceInfo.isMobile && this.isServiceWorkerReady) {
-      console.log(`📱 Dispositivo móvil detectado - enviando directamente al SW: ${id}`);
-
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        if (registration.active) {
-          registration.active.postMessage({
-            type: "SCHEDULE_NOTIFICATION",
-            id,
-            delay,
-            title,
-            body,
-            options: options || {},
-          });
-
-          // Marcar como transferida
-          const state = this.notificationStates.get(id);
-          if (state) state.transferredToSW = true;
-
-          console.log(`✅ Notificación ${id} enviada al SW para móvil`);
-        }
-      } catch (error) {
-        console.warn("⚠️ Error enviando al SW, usando fallback local:", error);
-        this.scheduleLocalNotification(id, delay, title, body, options);
-      }
-    } else {
-      // Desktop: programar localmente
-      this.scheduleLocalNotification(id, delay, title, body, options);
-    }
-
-    // Guardar estado inmediatamente
-    this.saveToStorage();
-
-    console.log(`✅ Notificación "${id}" programada exitosamente`);
-  }
-
-  /**
-   * 🔥 NUEVO: Programar notificación local
-   */
-  private scheduleLocalNotification(
-    id: string,
-    delay: number,
-    title: string,
-    body: string,
-    options?: NotificationOptions
-  ): void {
-    // Programar la notificación local
-    const timerId = window.setTimeout(async () => {
-      const state = this.notificationStates.get(id);
-
-      // 🔥 VERIFICACIÓN: Solo ejecutar si no se ha ejecutado ya
-      if (!state || state.executed) {
-        console.log(`⚠️ Notificación "${id}" ya fue ejecutada o cancelada`);
-        return;
-      }
-
-      console.log(`🔔 Ejecutando notificación programada: ${id}`);
-
-      try {
-        // Verificar si la app está visible
-        if (this.appVisible && this.deviceInfo.isMobile) {
-          // Mostrar en la app
-          this.handleInAppNotification({ id, title, body });
-        } else {
-          // Mostrar notificación del sistema
-          await this.showPersistentNotification(title, body, options?.tag || id);
-        }
-
-        // Marcar como ejecutada
-        if (state) {
-          state.executed = true;
-        }
-      } catch (error) {
-        console.error(`❌ Error ejecutando notificación ${id}:`, error);
-      }
-
-      // Limpiar timer
-      this.scheduledNotifications.delete(id);
-    }, delay);
-
-    this.scheduledNotifications.set(id, timerId);
-  }
-
-  /**
-   * 🔥 CORREGIDO: Cancelar notificación con limpieza completa
-   */
-  public cancelNotification(id: string): void {
-    console.log(`❌ Cancelando notificación: ${id}`);
-
-    // Cancelar timer local si existe
-    if (this.scheduledNotifications.has(id)) {
-      const timerId = this.scheduledNotifications.get(id)!;
-      window.clearTimeout(timerId);
-      this.scheduledNotifications.delete(id);
-    }
-
-    // Cancelar en SW también
-    if (this.isServiceWorkerReady) {
-      navigator.serviceWorker.ready.then((registration) => {
-        if (registration.active) {
-          registration.active.postMessage({
-            type: "CANCEL_NOTIFICATION",
-            id,
-          });
-        }
-      });
-    }
-
-    // Limpiar estado
-    this.notificationStates.delete(id);
-
-    // Actualizar storage
-    this.saveToStorage();
-
-    console.log(`✅ Notificación "${id}" cancelada completamente`);
-  }
-
-  // ... resto de métodos sin cambios
-
-  public async showNotification(title: string, body: string, options?: NotificationOptions): Promise<void> {
-    const notificationId = options?.tag || `notification-${Date.now()}`;
-
-    console.log("🔔 Solicitando mostrar notificación:", title, "ID:", notificationId);
-
-    if (!this.isSupported()) {
-      console.warn("❌ Navegador no soporta notificaciones");
-      return;
-    }
-
-    const preferences = getUserPreferences();
-    if (!preferences.notifications) {
-      console.log("📵 Notificaciones desactivadas en preferencias");
-      return;
-    }
-
-    const permission = this.getPermissionStatus();
-    console.log("📋 Estado de permisos:", permission);
-
-    if (permission !== "granted") {
-      console.warn("⚠️ Sin permisos para mostrar notificaciones");
-      return;
-    }
-
-    try {
-      // 🔥 MEJORADO: Estrategia según el dispositivo
-      if (this.deviceInfo.isMobile && this.appVisible) {
-        // Dispositivo móvil con app visible - mostrar en la app
-        this.handleInAppNotification({ id: notificationId, title, body });
-      } else {
-        // App en background o desktop - usar notificación del sistema
-        await this.showPersistentNotification(title, body, notificationId);
-      }
-    } catch (error) {
-      console.error("❌ Error creando notificación:", error);
-    }
-  }
-
-  public async showPersistentNotification(title: string, body: string, tag?: string): Promise<void> {
-    if (!isPersistentNotificationSupported()) {
-      console.warn("⚠️ Notificaciones persistentes no soportadas, usando fallback");
-
-      // Fallback a notificación normal
-      if (this.getPermissionStatus() === "granted") {
-        const notification = new Notification(title, {
-          body,
-          icon: "/icons/pwa-192x192.png",
-          badge: "/icons/pwa-64x64.png",
-          tag: tag || `fallback-${Date.now()}`,
-          requireInteraction: false,
-          vibrate: [200, 100, 200],
-        });
-
-        notification.onclick = () => {
-          window.focus();
-          notification.close();
-        };
-
-        setTimeout(() => notification.close(), 8000);
-      }
-      return;
-    }
-
-    if (this.getPermissionStatus() !== "granted") {
-      console.warn("⚠️ Sin permisos para notificaciones persistentes");
-      return;
-    }
-
-    try {
-      await showPersistentNotification(title, body, {
-        tag: tag || `persistent-${Date.now()}`,
-        vibrate: [300, 100, 300, 100, 300],
-        requireInteraction: true,
-        icon: "/icons/pwa-192x192.png",
-        badge: "/icons/pwa-64x64.png",
-      });
-
-      console.log("✅ Notificación persistente mostrada:", tag);
-    } catch (error) {
-      console.error("❌ Error con notificación persistente:", error);
-      throw error;
-    }
-  }
-
-  public cancelAllNotifications(): void {
-    console.log("🧹 Cancelando TODAS las notificaciones");
-
-    // Cancelar todos los timers locales
-    for (const [id] of this.scheduledNotifications) {
-      const timerId = this.scheduledNotifications.get(id)!;
-      window.clearTimeout(timerId);
-    }
-
-    // Cancelar en SW
-    if (this.isServiceWorkerReady) {
-      navigator.serviceWorker.ready.then((registration) => {
-        if (registration.active) {
-          // Enviar comando para limpiar cola del SW
-          registration.active.postMessage({
-            type: "CLEAR_ALL_NOTIFICATIONS",
-          });
-        }
-      });
-    }
-
-    // Limpiar todo
-    this.scheduledNotifications.clear();
-    this.notificationStates.clear();
-
-    // Limpiar storage
-    localStorage.removeItem(this.STORAGE_KEY);
-
-    console.log("✅ Todas las notificaciones canceladas");
-  }
-
-  public async requestPermission(): Promise<NotificationPermission> {
-    if (!this.isSupported()) {
-      throw new Error("Este navegador no soporta notificaciones.");
-    }
-
-    if (Notification.permission === "granted") {
-      return "granted";
-    }
-
-    if (Notification.permission === "denied") {
-      return "denied";
-    }
-
-    console.log("🔐 Solicitando permisos de notificación...");
-    const permission = await Notification.requestPermission();
-    console.log("📋 Permisos obtenidos:", permission);
-
-    return permission;
-  }
-
-  public isSupported(): boolean {
-    return "Notification" in window;
-  }
-
-  public getPermissionStatus(): NotificationPermission {
-    if (!this.isSupported()) {
-      return "denied";
-    }
-    return Notification.permission;
-  }
-
-  public getActiveTimers(): string[] {
-    return Array.from(this.scheduledNotifications.keys());
-  }
-
-  public getDebugInfo(): object {
-    return {
-      supported: this.isSupported(),
-      permission: this.getPermissionStatus(),
-      serviceWorkerReady: this.isServiceWorkerReady,
-      deviceInfo: this.deviceInfo,
-      activeTimers: this.getActiveTimers(),
-      notificationStates: Object.fromEntries(
-        Array.from(this.notificationStates.entries()).map(([id, state]) => [
-          id,
-          {
-            ...state,
-            scheduledFor: new Date(state.scheduledTime).toLocaleTimeString(),
-            remainingMs: state.scheduledTime - Date.now(),
-          },
-        ])
-      ),
-      persistentSupported: isPersistentNotificationSupported(),
-      preferences: getUserPreferences().notifications,
-      appVisible: this.appVisible,
-      lastVisibilityChange: new Date(this.lastVisibilityChange).toLocaleTimeString(),
-    };
-  }
-
-  public async testNotification(): Promise<void> {
+  public async testNotification(): Promise<boolean> {
     const testId = `test-${Date.now()}`;
-    console.log("🧪 Probando notificación con ID:", testId);
 
     try {
-      await this.showPersistentNotification(
-        "🧪 Prueba de Notificación",
-        `Test realizado a las ${new Date().toLocaleTimeString()}. El sistema funciona correctamente.`,
-        testId
+      console.log("🧪 Iniciando test de notificación...");
+
+      await this.scheduleNotification(
+        testId,
+        2000, // 2 segundos
+        "🧪 Test de Notificación",
+        `Prueba realizada a las ${new Date().toLocaleTimeString()}. ${
+          this.isServiceWorkerReady ? "Usando SW" : "Modo básico"
+        }. El sistema funciona correctamente.`,
+        {
+          vibrate: [300, 100, 300],
+          requireInteraction: false,
+        }
       );
 
       // Programar una notificación de prueba para 5 segundos
@@ -719,10 +577,27 @@ class NotificationManager {
           "Esta notificación se programó hace 5 segundos. ¡El sistema funciona!"
         );
       }, 1000);
-    } catch (error) {
+
+      return true;
+    } catch (error: any) {
       console.error("❌ Error en test de notificación:", error);
-      throw error;
+      return false;
     }
+  }
+
+  /**
+   * Obtener información del sistema
+   */
+  public getSystemInfo() {
+    return {
+      serviceWorkerReady: this.isServiceWorkerReady,
+      deviceInfo: this.deviceInfo,
+      permission: Notification.permission,
+      scheduledCount: this.scheduledNotifications.size,
+      stateCount: this.notificationStates.size,
+      appVisible: this.appVisible,
+      lastVisibilityChange: this.lastVisibilityChange,
+    };
   }
 
   public isBackgroundNotificationAvailable(): boolean {
@@ -753,11 +628,70 @@ class NotificationManager {
       recommendations.push("En desktop, las notificaciones funcionan con la app minimizada");
     }
 
-    if (this.getPermissionStatus() !== "granted") {
+    if (Notification.permission !== "granted") {
       recommendations.push("Activa los permisos de notificación para el funcionamiento completo");
     }
 
     return recommendations;
+  }
+
+  public getPermissionStatus(): NotificationPermission {
+    return Notification.permission;
+  }
+
+  /**
+   * Mostrar notificación inmediata (método público)
+   */
+  public async showNotification(title: string, body: string, options?: any): Promise<boolean> {
+    return this.showImmediateNotification(title, body, options);
+  }
+
+  /**
+   * Obtener debug info del sistema
+   */
+  public getDebugInfo() {
+    return this.getSystemInfo();
+  }
+
+  /**
+   * Obtener lista de timers activos (simulado)
+   */
+  public getActiveTimers(): string[] {
+    return Array.from(this.notificationStates.keys());
+  }
+
+  /**
+   * Cancelar todas las notificaciones
+   */
+  public cancelAllNotifications(): void {
+    console.log("🧹 Cancelando todas las notificaciones");
+
+    // Cancelar todos los timeouts locales
+    for (const [id, timeoutId] of this.scheduledNotifications) {
+      clearTimeout(timeoutId);
+      console.log(`✅ Timeout cancelado: ${id}`);
+    }
+    this.scheduledNotifications.clear();
+
+    // Cancelar en Service Worker
+    if (this.isServiceWorkerReady) {
+      navigator.serviceWorker.ready
+        .then((registration) => {
+          if (registration.active) {
+            registration.active.postMessage({
+              type: "CLEAR_ALL_NOTIFICATIONS",
+            });
+            console.log("📨 Comando de limpieza enviado a SW");
+          }
+        })
+        .catch((error: any) => {
+          console.error(`❌ Error enviando comando de limpieza al SW: ${error}`);
+        });
+    }
+
+    // Limpiar todos los estados
+    this.notificationStates.clear();
+    console.log("✅ Todas las notificaciones canceladas");
   }
 }
 
