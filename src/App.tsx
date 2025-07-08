@@ -1,9 +1,11 @@
-// src/App.tsx - VERSIÓN COMPLETA FINAL CON MANEJO DE ERRORES CRÍTICOS
+// src/App.tsx - VERSIÓN FINAL CON useUIState + useAppData (FUNCIONANDO)
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Toaster } from "@/shared/ui/sonner";
 import { ThemeProvider } from "@/shared/ui/theme-provider";
 import { Alert, AlertDescription, Button } from "@/shared/ui";
 import { AlertTriangle, X } from "lucide-react";
+import { useUIState } from "@/hooks/useUIState";
+import { useAppData } from "@/hooks/useAppData";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary/ErrorBoundary";
 import { MainLayout } from "@/shared/components/Layout/Layout";
 
@@ -14,11 +16,11 @@ import { OfflineIndicator } from "@/components/PWA/OfflineIndicator";
 import { usePWA } from "@/hooks/usePWA";
 
 // Componentes principales
-import LocationSaver from "./features/location/components/LocationSaver/LocationSaver";
+import LocationSaver from "./features/location/components/LocationSaver";
 import TimerDashboard from "./features/parking/components/TimerDashboard/TimerDashboard";
-import { UnifiedMap } from "./features/location/components/UnifiedMap/UnifiedMap";
-import SavedLocations from "./features/location/components/SavedLocations/SavedLocations";
-import ProximitySearch from "./features/location/components/ProximitySearch/ProximitySearch";
+import { UnifiedMap } from "./features/location/components/UnifiedMap";
+import SavedLocations from "./features/location/components/SavedLocations";
+import ProximitySearch from "./features/location/components/ProximitySearch";
 import Settings from "./shared/components/Settings/Settings";
 import Stats from "./shared/components/Stats/Stats";
 import Navigation from "./features/navigation/components/Navigation/Navigation";
@@ -30,9 +32,8 @@ import { AppProvider } from "./contexts/AppContext";
 import { useGeolocation } from "./features/location/hooks/useGeolocation";
 
 // Tipos y utilidades
-import type { CarLocation, UserPreferences } from "./types/location";
-import { getCarLocations, updateCarLocation, saveCarLocation, deleteCarLocation } from "./utils/storage";
-import { getUserPreferences, initializeTheme } from "./utils/preferences";
+import type { CarLocation } from "./types/location";
+import { initializeTheme } from "./utils/preferences";
 import { timerManager } from "./utils/timerManager";
 import { unifiedNotificationSystem } from "@/utils/unifiedNotificationSystem";
 import { useSmartLocation } from "./utils/locationDefaults";
@@ -60,27 +61,35 @@ if (typeof window !== "undefined") {
 }
 
 function AppContent() {
+  // 🔥 Hook consolidado de UI (FUNCIONA BIEN)
+  const {
+    currentView,
+    showSettings,
+    showStats,
+    showNavigation,
+    showLocationPermissions,
+    navigationTarget,
+    locationPermissionGranted,
+    globalError,
+    setCurrentView,
+    showSettingsHandler,
+    hideSettingsHandler,
+    showStatsHandler,
+    hideStatsHandler,
+    startNavigation,
+    closeNavigation,
+    handlePermissionGranted,
+    handlePermissionDenied,
+    setGlobalError,
+    handleGlobalErrorDismiss,
+  } = useUIState();
+
   // 🚨 VERIFICACIONES DE SEGURIDAD AL INICIO
   const [isInitialized, setIsInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
-  // Estados principales
-  const [locations, setLocations] = useState<CarLocation[]>([]);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([40.4168, -3.7038]);
-  const [mapZoom, setMapZoom] = useState<number>(13);
-  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>();
-  const [preferences, setPreferences] = useState<UserPreferences>(getUserPreferences());
+  // Estado de ubicación actual (único estado que queda aquí)
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-
-  // Estados de UI
-  const [currentView, setCurrentView] = useState<"map" | "proximity">("map");
-  const [showSettings, setShowSettings] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [showNavigation, setShowNavigation] = useState(false);
-  const [showLocationPermissions, setShowLocationPermissions] = useState(false);
-  const [navigationTarget, setNavigationTarget] = useState<CarLocation | null>(null);
-  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
-  const [globalError, setGlobalError] = useState<string | null>(null);
 
   // PWA hooks
   const { isOffline, hasUpdate, updateApp, dismissUpdate } = usePWA();
@@ -91,6 +100,31 @@ function AppContent() {
   // Hook de geolocalización con manejo seguro
   const geoHook = useGeolocation();
   const { latitude, longitude, loading: isGeoLoading, getCurrentPosition: getCurrentLocation } = geoHook;
+
+  // 🔥 Hook consolidado de datos (CORREGIDO)
+  const {
+    // Estados
+    locations,
+    preferences,
+    selectedLocationId,
+    mapCenter,
+    mapZoom,
+    // Handlers principales
+    handleLocationSaved,
+    handleLocationUpdate,
+    handleLocationDeleted,
+    handleLocationSelected,
+    // Handlers de timers
+    handleTimerExtend,
+    handleTimerCancel,
+    // Handlers de mapa
+    handleMapLocationClick,
+    handleMapCenterChange,
+    // Handlers de preferencias
+    handlePreferencesChange,
+    updateSortPreference,
+    updateShowAllPreference,
+  } = useAppData(currentLocation, updateLastKnownLocation);
 
   // Crear currentLocation a partir de latitude/longitude
   const geoCurrentLocation = useMemo(() => {
@@ -126,11 +160,6 @@ function AppContent() {
     const verifyDependencies = async () => {
       try {
         console.log("🔍 Verificando dependencias críticas...");
-
-        // Verificar funciones esenciales
-        if (typeof getCarLocations !== "function") {
-          throw new Error("getCarLocations no está disponible");
-        }
 
         if (!timerManager || typeof timerManager.scheduleTimer !== "function") {
           throw new Error("timerManager no está completamente disponible");
@@ -207,161 +236,32 @@ function AppContent() {
     }
   }, [geoCurrentLocation, updateLastKnownLocation, isInitialized]);
 
-  // Handlers para UI
-  const showSettingsHandler = useCallback(() => setShowSettings(true), []);
-  const hideSettingsHandler = useCallback(() => setShowSettings(false), []);
-  const showStatsHandler = useCallback(() => setShowStats(true), []);
-  const hideStatsHandler = useCallback(() => setShowStats(false), []);
-  const closeNavigation = useCallback(() => setShowNavigation(false), []);
-  const handleGlobalErrorDismiss = useCallback(() => setGlobalError(null), []);
-
-  const handlePreferencesChange = useCallback((newPreferences: UserPreferences) => {
-    setPreferences(newPreferences);
-  }, []);
-
-  const handleLocationSaved = useCallback(
-    async (newLocation: CarLocation) => {
+  // Handler de navegación (usa startNavigation del hook UI)
+  const handleNavigateToLocation = useCallback(
+    async (location: CarLocation) => {
       try {
-        console.log("💾 Guardando nueva ubicación:", newLocation);
-
-        saveCarLocation(newLocation);
-        setLocations((prev) => [...prev, newLocation]);
-
-        if (newLocation.expiryTime) {
-          console.log("⏰ Programando timer para nueva ubicación");
-          await timerManager.scheduleTimer(newLocation);
-        }
-
-        if (!newLocation.isManualPlacement && currentLocation) {
-          updateLastKnownLocation(currentLocation.latitude, currentLocation.longitude);
-        }
-
-        toast.success("📍 Ubicación guardada");
-      } catch (error) {
-        console.error("Error saving location:", error);
-        toast.error("Error al guardar la ubicación");
-      }
-    },
-    [currentLocation, updateLastKnownLocation]
-  );
-
-  const handleLocationUpdate = useCallback(
-    async (id: string, updates: Partial<CarLocation>) => {
-      try {
-        console.log(`📝 Actualizando ubicación ${id}:`, updates);
-
-        updateCarLocation(id, updates);
-        setLocations((prev) => prev.map((loc) => (loc.id === id ? { ...loc, ...updates } : loc)));
-
-        if (updates.expiryTime) {
-          const location = locations.find((loc) => loc.id === id);
-          if (location) {
-            const updatedLocation = { ...location, ...updates };
-            timerManager.scheduleTimer(updatedLocation).catch((error) => {
-              console.error("❌ Error re-programando timer:", error);
-            });
-          }
-        }
-
-        toast.success("Ubicación actualizada");
-      } catch (error) {
-        console.error("Error updating location:", error);
-        toast.error("Error al actualizar la ubicación");
-      }
-    },
-    [locations]
-  );
-
-  const handleLocationDeleted = useCallback(
-    (locationId: string) => {
-      try {
-        const location = locations.find((loc) => loc.id === locationId);
-        if (!location) {
-          console.error("Ubicación no encontrada:", locationId);
+        if (!currentLocation) {
+          getCurrentLocation?.();
+          setGlobalError("Obteniendo tu ubicación actual...");
           return;
         }
-
-        deleteCarLocation(locationId);
-        setLocations((prev) => prev.filter((loc) => loc.id !== locationId));
-
-        timerManager.cancelTimer(locationId);
-
-        if (selectedLocationId === locationId) {
-          setSelectedLocationId(undefined);
-        }
-        toast.success("Ubicación eliminada");
+        startNavigation(location);
       } catch (error) {
-        console.error("Error deleting location:", error);
-        toast.error("Error al eliminar la ubicación");
+        console.error("Error iniciando navegación:", error);
+        setGlobalError("Error al iniciar la navegación");
       }
     },
-    [locations, selectedLocationId]
+    [currentLocation, getCurrentLocation, startNavigation, setGlobalError]
   );
 
-  const handleTimerExtend = useCallback(
-    async (locationId: string, minutes: number) => {
-      try {
-        console.log(`⏰ Extendiendo timer ${locationId} por ${minutes} minutos`);
+  // ✅ Handler con toast para permisos denegados
+  const handlePermissionDeniedWithToast = useCallback(() => {
+    handlePermissionDenied();
+    toast.error("Se necesitan permisos de ubicación para la navegación");
+  }, [handlePermissionDenied]);
 
-        const location = locations.find((loc) => loc.id === locationId);
-        if (!location || !location.expiryTime) {
-          throw new Error("Ubicación no encontrada o sin timer");
-        }
-
-        await timerManager.extendTimer(locationId, minutes, location);
-
-        const newExpiryTime = location.expiryTime + minutes * 60000;
-        const newExtensionCount = (location.extensionCount || 0) + 1;
-
-        const updates = {
-          expiryTime: newExpiryTime,
-          extensionCount: newExtensionCount,
-        };
-
-        updateCarLocation(locationId, updates);
-        setLocations((prev) => prev.map((loc) => (loc.id === locationId ? { ...loc, ...updates } : loc)));
-
-        toast.success(`Timer extendido ${minutes} minutos`);
-        console.log("✅ Timer extendido exitosamente");
-      } catch (error) {
-        console.error("❌ Error extendiendo timer:", error);
-        toast.error("Error al extender el timer");
-      }
-    },
-    [locations]
-  );
-
-  const handleTimerCancel = useCallback(async (locationId: string) => {
-    try {
-      console.log(`❌ Cancelando timer: ${locationId}`);
-
-      timerManager.cancelTimer(locationId);
-
-      const updates = {
-        expiryTime: undefined,
-        reminderMinutes: undefined,
-        extensionCount: undefined,
-      };
-
-      updateCarLocation(locationId, updates);
-      setLocations((prev) => prev.map((loc) => (loc.id === locationId ? { ...loc, ...updates } : loc)));
-
-      toast.success("Timer cancelado");
-      console.log("✅ Timer cancelado exitosamente");
-    } catch (error) {
-      console.error("❌ Error cancelando timer:", error);
-      toast.error("Error al cancelar el timer");
-    }
-  }, []);
-
-  const handleLocationSelected = useCallback((location: CarLocation) => {
-    setMapCenter([location.latitude, location.longitude]);
-    setMapZoom(15);
-    setSelectedLocationId(location.id);
-    setCurrentView("map");
-  }, []);
-
-  const handleShowOnMap = useCallback(
+  // Handler para mostrar en mapa con referencia
+  const handleShowOnMapWithRef = useCallback(
     (locations: CarLocation[]) => {
       if (locations.length > 0) {
         const location = locations[0];
@@ -374,32 +274,6 @@ function AppContent() {
     [handleLocationSelected]
   );
 
-  const handleMapLocationClick = useCallback((location: CarLocation) => {
-    setSelectedLocationId(location.id);
-  }, []);
-
-  const handleMapCenterChange = useCallback((center: [number, number], zoom: number) => {
-    setMapCenter(center);
-    setMapZoom(zoom);
-  }, []);
-
-  const handleNavigateToLocation = useCallback((location: CarLocation) => {
-    setNavigationTarget(location);
-    setShowLocationPermissions(true);
-  }, []);
-
-  const handlePermissionGranted = useCallback(() => {
-    setLocationPermissionGranted(true);
-    setShowLocationPermissions(false);
-    setShowNavigation(true);
-  }, []);
-
-  const handlePermissionDenied = useCallback(() => {
-    setShowLocationPermissions(false);
-    setNavigationTarget(null);
-    toast.error("Se necesitan permisos de ubicación para la navegación");
-  }, []);
-
   // Props memoizados
   const headerProps = useMemo(
     () => ({
@@ -409,7 +283,7 @@ function AppContent() {
       onShowStats: showStatsHandler,
       theme: preferences.theme,
     }),
-    [currentView, showSettingsHandler, showStatsHandler, preferences.theme]
+    [currentView, setCurrentView, showSettingsHandler, showStatsHandler, preferences.theme]
   );
 
   const locationSaverProps = useMemo(
@@ -443,16 +317,8 @@ function AppContent() {
       onNavigateToLocation: handleNavigateToLocation,
       sortBy: preferences.sortBy || "date",
       showAll: preferences.showAll || true,
-      onSortChange: (sortBy: "date" | "note") => {
-        const newPrefs = { ...preferences, sortBy };
-        setPreferences(newPrefs);
-        handlePreferencesChange(newPrefs);
-      },
-      onShowAllChange: (showAll: boolean) => {
-        const newPrefs = { ...preferences, showAll };
-        setPreferences(newPrefs);
-        handlePreferencesChange(newPrefs);
-      },
+      onSortChange: updateSortPreference,
+      onShowAllChange: updateShowAllPreference,
       dateFilter: "all" as const,
       onDateFilterChange: (filter: "all" | "today" | "week" | "month") => {
         console.log("Date filter changed:", filter);
@@ -467,8 +333,10 @@ function AppContent() {
       handleLocationDeleted,
       handleLocationSelected,
       handleNavigateToLocation,
-      preferences,
-      handlePreferencesChange,
+      preferences.sortBy,
+      preferences.showAll,
+      updateSortPreference,
+      updateShowAllPreference,
       handleTimerExtend,
       handleTimerCancel,
     ]
@@ -512,7 +380,7 @@ function AppContent() {
           <ProximitySearch
             locations={locations}
             onLocationSelect={handleLocationSelected}
-            onShowOnMap={handleShowOnMap}
+            onShowOnMap={handleShowOnMapWithRef}
           />
         )}
         <SavedLocations {...savedLocationsProps} />
@@ -529,7 +397,7 @@ function AppContent() {
       handleMapLocationClick,
       handleMapCenterChange,
       handleLocationSelected,
-      handleShowOnMap,
+      handleShowOnMapWithRef,
       savedLocationsProps,
     ]
   );
@@ -538,7 +406,16 @@ function AppContent() {
   useEffect(() => {
     if (!isInitialized) return;
 
+    let hasRun = false; // 🔥 AÑADIDO: Prevenir múltiples ejecuciones
+
     const initializeApp = async () => {
+      if (hasRun) {
+        console.log("⏳ Inicialización ya ejecutada, omitiendo...");
+        return;
+      }
+
+      hasRun = true; // 🔥 MARCAR COMO EJECUTADO
+
       try {
         console.log("🚀 Iniciando aplicación con manejo de errores mejorado...");
 
@@ -550,59 +427,37 @@ function AppContent() {
           console.error("❌ Error inicializando tema:", themeError);
         }
 
-        // 2. Cargar ubicaciones guardadas
+        // 2. Sincronizar timers con ubicaciones del hook
         try {
-          const savedLocations = getCarLocations();
-          setLocations(savedLocations);
-          console.log(`📍 Cargadas ${savedLocations.length} ubicaciones`);
-
-          // 3. Sincronizar timers
-          if (savedLocations.length > 0) {
+          if (locations.length > 0) {
             console.log("⏰ Sincronizando timers...");
+            await timerManager.syncWithSavedLocations(locations);
+            console.log("✅ Timers sincronizados exitosamente");
+          }
+        } catch (timerError) {
+          console.error("❌ Error sincronizando timers:", timerError);
 
-            try {
-              await timerManager.syncWithSavedLocations(savedLocations);
-              console.log("✅ Timers sincronizados exitosamente");
-            } catch (timerError) {
-              console.error("❌ Error sincronizando timers:", timerError);
+          // Fallback seguro
+          try {
+            console.log("🔄 Intentando sincronización individual segura...");
+            const activeLocations = locations.filter(
+              (location) => location.expiryTime && location.expiryTime > Date.now()
+            );
 
-              // Fallback seguro
+            for (const location of activeLocations) {
               try {
-                console.log("🔄 Intentando sincronización individual segura...");
-                const activeLocations = savedLocations.filter(
-                  (location) => location.expiryTime && location.expiryTime > Date.now()
-                );
-
-                for (const location of activeLocations) {
-                  try {
-                    await timerManager.scheduleTimer(location);
-                    console.log(`✅ Timer individual: ${location.note || location.id}`);
-                  } catch (individualError) {
-                    console.error(`❌ Error timer individual ${location.id}:`, individualError);
-                  }
-                }
-              } catch (fallbackError) {
-                console.error("❌ Error en fallback de timers:", fallbackError);
+                await timerManager.scheduleTimer(location);
+                console.log(`✅ Timer individual: ${location.note || location.id}`);
+              } catch (individualError) {
+                console.error(`❌ Error timer individual ${location.id}:`, individualError);
               }
             }
+          } catch (fallbackError) {
+            console.error("❌ Error en fallback de timers:", fallbackError);
           }
-        } catch (locationError) {
-          console.error("❌ Error cargando ubicaciones:", locationError);
-          setLocations([]);
         }
 
-        // 4. Configurar mapa inicial
-        try {
-          if (!locationLoading && locations.length > 0 && !initialLocation) {
-            setMapCenter([locations[0].latitude, locations[0].longitude]);
-            setMapZoom(15);
-            console.log("🗺️ Mapa centrado en primera ubicación");
-          }
-        } catch (mapError) {
-          console.error("❌ Error configurando mapa:", mapError);
-        }
-
-        // 5. Obtener ubicación actual
+        // 3. Obtener ubicación actual
         try {
           if (getCurrentLocation) {
             getCurrentLocation();
@@ -613,7 +468,7 @@ function AppContent() {
           console.error("❌ Error con geolocalización:", geoError);
         }
 
-        // 6. Configurar listeners móviles
+        // 4. Configurar listeners móviles
         try {
           setupMobileEventListeners();
           console.log("📱 Event listeners configurados");
@@ -640,14 +495,15 @@ function AppContent() {
         const handleFocus = async () => {
           try {
             console.log("📱 App volvió al foco");
-            const locations = getCarLocations();
-            const activeLocations = locations.filter(
-              (location) => location.expiryTime && location.expiryTime > Date.now()
-            );
+            if (locations.length > 0) {
+              const activeLocations = locations.filter(
+                (location) => location.expiryTime && location.expiryTime > Date.now()
+              );
 
-            if (activeLocations.length > 0) {
-              console.log(`🔄 Re-sincronizando ${activeLocations.length} timers activos`);
-              await timerManager.syncWithSavedLocations(locations);
+              if (activeLocations.length > 0) {
+                console.log(`🔄 Re-sincronizando ${activeLocations.length} timers activos`);
+                await timerManager.syncWithSavedLocations(locations);
+              }
             }
           } catch (error) {
             console.error("❌ Error sincronizando al volver al foco:", error);
@@ -703,7 +559,7 @@ function AppContent() {
     }
 
     return cleanup;
-  }, [isInitialized, locationLoading, initialLocation, locations.length]);
+  }, [isInitialized]); // 🔥 SIMPLIFICADO: Solo depende de isInitialized
 
   // useEffect para debug en desarrollo
   useEffect(() => {
@@ -713,19 +569,20 @@ function AppContent() {
       const debugInterval = setInterval(() => {
         console.log("🔍 DEBUG - Estado de la aplicación:");
         console.log("  - Timers:", timerManager.getTimerInfo());
+        console.log("  - Ubicaciones:", locations.length);
       }, 60000);
 
       return () => clearInterval(debugInterval);
     }
-  }, [isInitialized]);
+  }, [isInitialized, locations.length]);
 
   // Actualizar mapa cuando cambie initialLocation
   useEffect(() => {
     if (!isInitialized) return;
 
     if (initialLocation && !locationLoading) {
-      setMapCenter(initialLocation.coordinates);
-      setMapZoom(initialLocation.zoom);
+      // El mapa se actualiza a través del hook useAppData
+      console.log("📍 Ubicación inicial disponible:", initialLocation);
     }
   }, [initialLocation, locationLoading, isInitialized]);
 
@@ -796,7 +653,7 @@ function AppContent() {
           <ErrorBoundary>
             <LocationPermissions
               onPermissionGranted={handlePermissionGranted}
-              onPermissionDenied={handlePermissionDenied}
+              onPermissionDenied={handlePermissionDeniedWithToast}
             />
           </ErrorBoundary>
         </div>

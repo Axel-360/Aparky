@@ -18,11 +18,11 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { useGeolocation } from "../../hooks/useGeolocation";
-import { PhotoCapture } from "../../../photo";
-import { ParkingTimer } from "../../../parking";
-import { UnifiedMap } from "../UnifiedMap/UnifiedMap";
-import type { CarLocation } from "../../../../types/location";
+import { useGeolocation } from "../hooks/useGeolocation";
+import { PhotoCapture } from "../../photo";
+import { ParkingTimer } from "../../parking";
+import { UnifiedMap } from "./UnifiedMap";
+import type { CarLocation } from "../../../types/location";
 
 interface LocationSaverProps {
   onLocationSaved: (location: CarLocation) => void;

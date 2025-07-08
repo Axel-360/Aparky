@@ -5,8 +5,8 @@ import { deleteCarLocation, updateCarLocation } from "@/utils/storage";
 import { filterLocationsByDate } from "@/utils/stats";
 import { copyToClipboard } from "@/utils/helpers";
 import { timerManager } from "@/utils/timerManager";
-import SearchFilter from "../SearchFilter/SearchFilter";
-import EditLocationDialog from "../EditLocationDialog/EditLocationDialog";
+import SearchFilter from "./SearchFilter";
+import EditLocationDialog from "./EditLocationDialog";
 import { LocationDeleteDialog } from "@/shared/components/ConfirmationDialog/ConfirmationDialog";
 import {
   Button,
