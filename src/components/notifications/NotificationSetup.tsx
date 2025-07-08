@@ -1,4 +1,4 @@
-// src/components/NotificationSetupBasic.tsx
+// src/components/notifications/NotificationSetup.tsx
 import React, { useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -7,9 +7,9 @@ import { Alert, AlertDescription } from "@/shared/ui/alert";
 import { Bell, CheckCircle, AlertCircle, Info, RefreshCw, TestTube } from "lucide-react";
 import { toast } from "sonner";
 import { useNotifications } from "@/hooks/useNotifications";
-import { NotificationTestButton } from "@/components/NotificationTestButton";
+import { NotificationTestButton } from "@/components/notifications/NotificationTestButton";
 
-export const NotificationSetupBasic: React.FC = () => {
+export const NotificationSetup: React.FC = () => {
   const {
     isInitialized,
     isSupported,

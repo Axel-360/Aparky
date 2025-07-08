@@ -1,54 +1,209 @@
-# React + TypeScript + Vite
+# 🚗 Aparky - Encuentra tu Coche
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> **Aplicación Web Progresiva (PWA)** para guardar y encontrar fácilmente donde aparcaste tu vehículo
 
-Currently, two official plugins are available:
+## ✨ **Características Principales**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 📍 **Guardar ubicación automática** con GPS
+- 🗺️ **Mapa interactivo** con OpenStreetMap
+- ⏰ **Temporizadores de parking** con notificaciones
+- 📱 **PWA completa** - funciona sin conexión
+- 🔔 **Notificaciones background** cuando expira el parking
+- 📸 **Fotos de referencia** para recordar mejor
+- 📊 **Estadísticas de uso** y historial
+- 🎯 **Búsqueda por proximidad** para encontrar tu coche
+- 💰 **Control de costos** de aparcamiento
 
-## Expanding the ESLint configuration
+## 🚀 **Tecnologías**
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Frontend**: React 19 + TypeScript
+- **Styling**: Tailwind CSS 4.1 + shadcn/ui
+- **Build**: Vite 6.3
+- **Maps**: Leaflet + OpenStreetMap
+- **PWA**: Service Worker + Workbox
+- **Storage**: LocalStorage + IndexedDB
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## 🏗️ **Estructura del Proyecto**
+
+```
+src/
+├── features/           # Funcionalidades por dominio
+│   ├── location/      # Gestión de ubicaciones
+│   ├── parking/       # Temporizadores y parking
+│   ├── navigation/    # Navegación y rutas
+│   └── photo/         # Captura de fotos
+├── components/        # Componentes globales
+│   ├── PWA/          # Componentes PWA
+│   └── ui/           # Sistema de diseño
+├── hooks/            # Hooks reutilizables
+├── utils/            # Servicios y utilidades
+└── types/            # Definiciones TypeScript
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🛠️ **Instalación y Desarrollo**
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### **Prerrequisitos**
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+- Node.js 18+
+- npm o yarn
+
+### **Configuración Local**
+
+```bash
+# Clonar e instalar
+git clone [tu-repo]
+cd aparky
+npm install
+
+# Desarrollo
+npm run dev
+
+# Build para producción
+npm run build
+
+# Preview del build
+npm run preview
 ```
+
+### **URLs de Desarrollo**
+
+- **App**: http://localhost:3000
+- **PWA**: Se registra automáticamente
+- **HTTPS**: No necesario en desarrollo
+
+## 📱 **Funcionalidades PWA**
+
+### **Instalación**
+
+- ✅ Instalable desde el navegador
+- ✅ Icono en pantalla de inicio
+- ✅ Funciona sin conexión
+- ✅ Notificaciones push
+
+### **Notificaciones**
+
+- 🔔 Avisos cuando expira el parking
+- 📱 Funciona en background
+- 🍎 Compatible con iOS y Android
+- ⚡ Sistema de cola robusto
+
+## 🎯 **Casos de Uso**
+
+1. **Parking Rápido**
+
+   - Abrir app → Guardar ubicación → Listo
+
+2. **Parking con Tiempo**
+
+   - Guardar ubicación → Configurar timer → Recibir notificación
+
+3. **Buscar Coche**
+
+   - Abrir app → Ver mapa → Navegar hasta el coche
+
+4. **Gestión Completa**
+   - Fotos, notas, costos, historial
+
+## 🔧 **Configuración**
+
+### **Permisos Necesarios**
+
+- 📍 **Ubicación**: Para GPS automático
+- 🔔 **Notificaciones**: Para avisos de tiempo
+- 📸 **Cámara**: Para fotos opcionales
+
+### **Almacenamiento**
+
+- **LocalStorage**: Ubicaciones y preferencias
+- **IndexedDB**: Cola de notificaciones
+- **Cache**: Mapas y recursos offline
+
+## 📊 **Performance**
+
+- ⚡ **Primera carga**: <2s
+- 🗺️ **Mapas**: Cache agresivo
+- 💾 **Offline**: Funcionalidad completa
+- 🔄 **Sync**: Automática al reconectar
+
+## 🧪 **Testing**
+
+```bash
+# Linting
+npm run lint
+
+# Verificar tipos
+npm run type-check
+
+# Build test
+npm run build
+```
+
+## 🚀 **Deployment**
+
+### **Build de Producción**
+
+```bash
+npm run build:deploy
+```
+
+### **Archivos Generados**
+
+- `dist/` - Aplicación optimizada
+- `sw.js` - Service Worker
+- `manifest.json` - Metadatos PWA
+
+### **Recomendaciones**
+
+- ✅ HTTPS obligatorio para PWA
+- ✅ Configurar headers de cache
+- ✅ Verificar manifest.json
+
+## 🐛 **Troubleshooting**
+
+### **Problemas Comunes**
+
+**GPS no funciona**
+
+- Verificar permisos de ubicación
+- Usar HTTPS en producción
+
+**Notificaciones no llegan**
+
+- Verificar permisos de notificación
+- Comprobar que PWA esté instalada
+
+**App no funciona offline**
+
+- Verificar Service Worker registrado
+- Limpiar cache del navegador
+
+### **Debug**
+
+```javascript
+// En consola del navegador
+window.timerManager?.getDebugInfo();
+window.unifiedNotificationSystem?.getStatus();
+```
+
+## 📝 **Roadmap**
+
+- [ ] 🗺️ Múltiples servicios de mapas
+- [ ] 🔄 Sincronización en la nube
+- [ ] 📈 Analytics avanzado
+- [ ] 🎨 Temas personalizables
+- [ ] 🌍 Multi-idioma
+
+## 👨‍💻 **Autor**
+
+**David Rovira**
+
+- Aplicación creada con ❤️
+- Especializada en PWA y geolocalización
+
+## 📄 **Licencia**
+
+Proyecto personal - Todos los derechos reservados
+
+---
+
+_¿Perdiste tu coche? ¡Aparky te ayuda a encontrarlo! 🚗✨_

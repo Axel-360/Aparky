@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run create-sw",
     "build": "tsc -b && vite build",
-    "build:deploy": "tsc -b && vite build && node post-build.cjs",
+    "build:deploy": "npm run create-sw && tsc -b && vite build",
     "postbuild": "node post-build.cjs",
     "create-sw": "node create-sw.cjs",
     "lint": "eslint .",

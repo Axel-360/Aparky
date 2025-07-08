@@ -23,7 +23,7 @@ import Settings from "./shared/components/Settings/Settings";
 import Stats from "./shared/components/Stats/Stats";
 import Navigation from "./features/navigation/components/Navigation/Navigation";
 import LocationPermissions from "./features/navigation/components/LocationPermissions/LocationPermissions";
-import { NotificationSetupBasic } from "@/components/NotificationSetupBasic";
+import { NotificationSetup } from "@/components/notifications/NotificationSetup";
 
 // Contexto y hooks
 import { AppProvider } from "./contexts/AppContext";
@@ -765,7 +765,7 @@ function AppContent() {
       <OfflineIndicator isOffline={isOffline} />
 
       <ErrorBoundary>
-        <NotificationSetupBasic />
+        <NotificationSetup />
       </ErrorBoundary>
 
       {globalError && (
