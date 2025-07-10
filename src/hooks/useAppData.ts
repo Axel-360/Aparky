@@ -255,7 +255,8 @@ export const useAppData = (
 
         // Extender en timer manager
         try {
-          await timerManager.extendTimer(locationId, minutes, location);
+          const updatedLocation = { ...location, ...updates };
+          await timerManager.scheduleTimer(updatedLocation);
         } catch (timerError) {
           console.error("Error en timer manager:", timerError);
           // No fallar por esto, la ubicación ya se actualizó

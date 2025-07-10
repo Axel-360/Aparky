@@ -182,7 +182,6 @@ npm run build:deploy
 ```javascript
 // En consola del navegador
 window.timerManager?.getDebugInfo();
-window.unifiedNotificationSystem?.getStatus();
 ```
 
 ## 📝 **Roadmap**

@@ -1,642 +1,247 @@
-// public/sw.js - Service Worker COMPLETO y CORREGIDO
-const CACHE_NAME = "aparky-v9-queue-fixed-" + Date.now();
-const NOTIFICATION_DB_NAME = "NotificationQueueDB";
+// public/sw.js - Service Worker LIMPIO: Solo PWA, sin notificaciones
+const CACHE_NAME = "parking-app-v1-clean";
+const STATIC_CACHE = "parking-app-static-v1";
 
-// Cola de notificaciones en memoria
-let notificationQueue = new Map();
-let processingQueue = false;
-let keepAliveInterval;
-let dbReady = false;
-let db = null;
+// Archivos esenciales para cache
+const urlsToCache = [
+  "/",
+  "/static/js/bundle.js",
+  "/static/css/main.css",
+  "/manifest.json",
+  "/icons/pwa-192x192.png",
+  "/icons/pwa-512x512.png",
+  "/icons/pwa-64x64.png",
+];
 
-console.log("🚀 SW: Service Worker COMPLETO cargando...");
+console.log("🚀 SW: Service Worker limpio cargando (sin notificaciones)...");
 
 // Instalar service worker
 self.addEventListener("install", (event) => {
   console.log("🔧 SW: Service Worker instalado");
-  self.skipWaiting();
+
+  event.waitUntil(
+    caches
+      .open(STATIC_CACHE)
+      .then((cache) => {
+        console.log("📦 SW: Abriendo cache estático");
+        return cache.addAll(urlsToCache);
+      })
+      .then(() => {
+        console.log("✅ SW: Cache estático creado");
+        return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error("❌ SW: Error en instalación:", error);
+      })
+  );
 });
 
 // Activar service worker
 self.addEventListener("activate", (event) => {
   console.log("✅ SW: Service Worker activado");
+
   event.waitUntil(
     Promise.all([
+      // Limpiar caches antiguos
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME && cacheName !== STATIC_CACHE) {
+              console.log("🗑️ SW: Eliminando cache antigua:", cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Tomar control de todos los clientes
       self.clients.claim(),
-      initializeDatabase(),
-      restoreNotificationQueue(),
-      startQueueProcessor(),
-      startKeepAlive(),
     ])
   );
 });
 
-// 🔥 MEJORADO: Manejar mensajes con más tipos
-self.addEventListener("message", (event) => {
-  console.log("📨 SW: Mensaje recibido:", event.data.type, event.data);
+// Interceptar solicitudes de red (estrategia Cache First para recursos estáticos)
+self.addEventListener("fetch", (event) => {
+  // Solo manejar solicitudes GET
+  if (event.request.method !== "GET") {
+    return;
+  }
 
-  const { type } = event.data; // ✅ Solo extraer el type
+  // Ignorar solicitudes de extensiones del navegador
+  if (event.request.url.startsWith("chrome-extension://") || event.request.url.startsWith("moz-extension://")) {
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      // Si está en cache, devolverlo
+      if (cachedResponse) {
+        console.log("📦 SW: Servido desde cache:", event.request.url);
+        return cachedResponse;
+      }
+
+      // Si no está en cache, hacer fetch y cachear recursos importantes
+      return fetch(event.request)
+        .then((response) => {
+          // Verificar que la respuesta sea válida
+          if (!response || response.status !== 200 || response.type !== "basic") {
+            return response;
+          }
+
+          // Clonar la respuesta porque es un stream que solo se puede leer una vez
+          const responseToCache = response.clone();
+
+          // Cachear solo ciertos tipos de archivos
+          const url = new URL(event.request.url);
+          const shouldCache =
+            url.origin === location.origin &&
+            (event.request.url.includes("/static/") ||
+              event.request.url.includes("/icons/") ||
+              event.request.url.includes("/manifest.json") ||
+              event.request.url === location.origin + "/");
+
+          if (shouldCache) {
+            caches.open(CACHE_NAME).then((cache) => {
+              console.log("💾 SW: Cacheando:", event.request.url);
+              cache.put(event.request, responseToCache);
+            });
+          }
+
+          return response;
+        })
+        .catch((error) => {
+          console.error("❌ SW: Error en fetch:", error);
+
+          // Fallback para navegación offline
+          if (event.request.mode === "navigate") {
+            return caches.match("/");
+          }
+
+          throw error;
+        });
+    })
+  );
+});
+
+// Manejar mensajes desde la aplicación principal
+self.addEventListener("message", (event) => {
+  console.log("📨 SW: Mensaje recibido:", event.data);
+
+  const { type } = event.data;
 
   switch (type) {
-    case "SCHEDULE_NOTIFICATION":
-      // ✅ CORREGIDO: Pasar el mensaje completo, no solo 'data'
-      handleScheduleNotification(event.data);
+    case "SKIP_WAITING":
+      console.log("⏭️ SW: Saltando espera...");
+      self.skipWaiting();
       break;
-    case "CANCEL_NOTIFICATION":
-      handleCancelNotification(event.data);
-      break;
-    case "GET_QUEUE_STATUS":
-      handleGetQueueStatus(event);
-      break;
-    case "FORCE_PROCESS_QUEUE":
-      console.log("🔄 SW: Procesamiento forzado desde mensaje");
-      processNotificationQueue();
-      break;
-    case "CLEAR_NOTIFICATION_QUEUE":
-      console.log("🧹 SW: Limpiando cola desde mensaje");
-      notificationQueue.clear();
-      break;
-    case "CLEAR_ALL_NOTIFICATIONS":
-      console.log("🧹 SW: Limpiando todas las notificaciones");
-      handleClearAllNotifications();
-      break;
-    case "DEBUG_INFO":
-      console.log("🔍 SW: Info de debug solicitada");
-      const debugInfo = {
-        queueSize: notificationQueue.size,
-        processingQueue,
-        dbReady,
-        dbExists: !!db,
-        dbConnected: !!(db && !db.closed),
-        notifications: Array.from(notificationQueue.values()),
-      };
-      console.log("📊 SW Estado:", debugInfo);
-      event.ports[0]?.postMessage(debugInfo);
-      break;
-    case "CHECK_DEBUG_FUNCTIONS":
-      console.log("🔍 SW: Verificando funciones debug disponibles");
-      break;
-    default:
-      console.log("❓ SW: Tipo de mensaje desconocido:", type);
-  }
-});
 
-// 🔥 MEJORADO: Función para verificar y reinicializar BD automáticamente
-async function ensureDatabaseReady() {
-  if (dbReady && db && !db.closed) {
-    return true;
-  }
-
-  console.log("⚠️ SW: BD no lista, reinicializando automáticamente...");
-
-  try {
-    await initializeDatabase();
-    return dbReady && db && !db.closed;
-  } catch (error) {
-    console.error("❌ SW: Error reinicializando BD:", error);
-    return false;
-  }
-}
-
-// Inicializar base de datos
-async function initializeDatabase() {
-  return new Promise((resolve) => {
-    console.log("🔄 SW: Inicializando base de datos...");
-
-    const request = indexedDB.open(NOTIFICATION_DB_NAME, 2);
-
-    request.onerror = function (event) {
-      console.error("❌ SW: Error abriendo base de datos:", event.target.error);
-      dbReady = false;
-      db = null;
-      resolve();
-    };
-
-    request.onupgradeneeded = function (event) {
-      console.log("🔄 SW: Actualizando esquema de base de datos...");
-      const database = event.target.result;
-
-      // Crear tabla de notificaciones si no existe
-      if (!database.objectStoreNames.contains("notifications")) {
-        const store = database.createObjectStore("notifications", { keyPath: "id" });
-        store.createIndex("scheduledTime", "scheduledTime", { unique: false });
-        console.log("✅ SW: Tabla de notificaciones creada");
-      }
-    };
-
-    request.onsuccess = function (event) {
-      db = event.target.result;
-      dbReady = true;
-      console.log("✅ SW: Base de datos inicializada correctamente");
-
-      db.onerror = function (event) {
-        console.error("❌ SW: Error en base de datos:", event.target.error);
-      };
-
-      resolve();
-    };
-  });
-}
-
-// Restaurar cola desde BD
-async function restoreNotificationQueue() {
-  if (!dbReady || !db) {
-    console.warn("⚠️ SW: BD no disponible para restaurar cola");
-    return;
-  }
-
-  try {
-    const transaction = db.transaction(["notifications"], "readonly");
-    const store = transaction.objectStore("notifications");
-    const request = store.getAll();
-
-    request.onsuccess = function () {
-      const notifications = request.result;
-      console.log(`🔄 SW: Restaurando ${notifications.length} notificaciones desde BD`);
-
-      let restored = 0;
-      const now = Date.now();
-
-      notifications.forEach((notification) => {
-        // Solo restaurar notificaciones futuras válidas
-        if (notification.scheduledTime && notification.scheduledTime > now) {
-          notificationQueue.set(notification.id, notification);
-          restored++;
-        } else {
-          // Eliminar notificaciones expiradas
-          deleteNotificationFromDB(notification.id);
-        }
+    case "GET_VERSION":
+      // Responder con información de versión
+      event.ports[0].postMessage({
+        type: "VERSION_INFO",
+        version: CACHE_NAME,
+        timestamp: Date.now(),
       });
+      break;
 
-      console.log(
-        `✅ SW: ${restored} notificaciones restauradas, ${notifications.length - restored} expiradas eliminadas`
-      );
-    };
-
-    request.onerror = function () {
-      console.error("❌ SW: Error restaurando cola desde BD");
-    };
-  } catch (error) {
-    console.error("❌ SW: Error en restauración de cola:", error);
-  }
-}
-
-// Manejar programación de notificación
-// Reemplaza la función handleScheduleNotification completa:
-function handleScheduleNotification(messageData) {
-  console.log("🔍 DEBUG COMPLETO - messageData:", messageData);
-  console.log("🔍 DEBUG - typeof messageData:", typeof messageData);
-  console.log("🔍 DEBUG - Object.keys:", Object.keys(messageData));
-
-  // Extraer datos del mensaje correcto
-  const data = messageData; // El mensaje completo ES los datos
-
-  console.log("⏰ SW: Programando notificación:", data.id);
-
-  // 🔧 VALIDACIÓN CORREGIDA
-  if (!data.id || !data.title || !data.scheduledTime) {
-    console.error("❌ SW: Datos de notificación inválidos:", data);
-    console.error("❌ SW: id:", data.id, "title:", data.title, "scheduledTime:", data.scheduledTime);
-    return;
-  }
-
-  // Validar que scheduledTime es un número válido
-  const scheduledTime = Number(data.scheduledTime);
-  if (isNaN(scheduledTime)) {
-    console.error("❌ SW: scheduledTime inválido:", data.scheduledTime);
-    return;
-  }
-
-  const notification = {
-    id: data.id,
-    title: data.title,
-    body: data.body || "",
-    scheduledTime: scheduledTime,
-    icon: data.icon || "/icons/pwa-192x192.png",
-    badge: data.badge || "/icons/pwa-64x64.png",
-    tag: data.tag || data.id,
-    requireInteraction: data.requireInteraction ?? true,
-    vibrate: data.vibrate || [200, 100, 200],
-    data: data.data || {},
-    processed: false,
-    retryCount: 0,
-    createdAt: Date.now(),
-  };
-
-  // Añadir a cola
-  notificationQueue.set(data.id, notification);
-
-  // Guardar en BD
-  saveNotificationToDB(notification);
-
-  console.log(`✅ SW: Notificación ${data.id} programada para ${new Date(scheduledTime).toLocaleString()}`);
-}
-
-// Manejar cancelación de notificación
-function handleCancelNotification(data) {
-  const id = typeof data === "string" ? data : data.id;
-  console.log("❌ SW: Cancelando notificación:", id);
-
-  if (notificationQueue.has(id)) {
-    notificationQueue.delete(id);
-    deleteNotificationFromDB(id);
-    console.log(`✅ SW: Notificación ${id} cancelada`);
-  }
-}
-
-// Manejar solicitud de estado de cola
-function handleGetQueueStatus(event) {
-  const status = getNotificationQueueDebug();
-
-  // Responder al cliente si es posible
-  if (event.ports && event.ports[0]) {
-    event.ports[0].postMessage(status);
-  }
-
-  console.log("📊 SW: Estado de cola enviado:", status);
-}
-
-function handleClearAllNotifications() {
-  console.log("🧹 SW: Limpiando todas las notificaciones y cola");
-
-  // Limpiar cola en memoria
-  notificationQueue.clear();
-
-  // Limpiar notificaciones activas del navegador
-  registration
-    .getNotifications()
-    .then((notifications) => {
-      notifications.forEach((notification) => {
-        console.log(`🗑️ SW: Cerrando notificación: ${notification.tag}`);
-        notification.close();
-      });
-
-      console.log(`✅ SW: ${notifications.length} notificaciones cerradas`);
-    })
-    .catch((error) => {
-      console.error("❌ SW: Error limpiando notificaciones:", error);
-    });
-
-  // Limpiar base de datos
-  if (db) {
-    try {
-      const transaction = db.transaction(["notifications"], "readwrite");
-      const store = transaction.objectStore("notifications");
-      store.clear();
-      console.log("🗑️ SW: Base de datos de notificaciones limpiada");
-    } catch (error) {
-      console.error("❌ SW: Error limpiando BD:", error);
-    }
-  }
-}
-
-// Guardar notificación en BD
-function saveNotificationToDB(notification) {
-  if (!dbReady || !db) return;
-
-  try {
-    const transaction = db.transaction(["notifications"], "readwrite");
-    const store = transaction.objectStore("notifications");
-    store.put(notification);
-  } catch (error) {
-    console.error("❌ SW: Error guardando en BD:", error);
-  }
-}
-
-// Eliminar notificación de BD
-function deleteNotificationFromDB(id) {
-  if (!dbReady || !db) return;
-
-  try {
-    const transaction = db.transaction(["notifications"], "readwrite");
-    const store = transaction.objectStore("notifications");
-    store.delete(id);
-  } catch (error) {
-    console.error("❌ SW: Error eliminando de BD:", error);
-  }
-}
-
-// 🔥 CORREGIDO: Procesador de cola mejorado
-async function processNotificationQueue() {
-  if (processingQueue) {
-    console.log("⏳ SW: Procesador ya ejecutándose");
-    return;
-  }
-
-  if (notificationQueue.size === 0) {
-    return;
-  }
-
-  processingQueue = true;
-  const now = Date.now();
-  const processed = [];
-  const invalidNotifications = [];
-
-  console.log(`🔄 SW: Procesando ${notificationQueue.size} notificaciones...`);
-
-  try {
-    for (const [id, notification] of notificationQueue) {
-      // Verificar fecha válida
-      if (!notification.scheduledTime || isNaN(notification.scheduledTime)) {
-        console.warn(`❌ SW: Notificación con fecha inválida: ${id}`);
-        invalidNotifications.push(id);
-        continue;
-      }
-
-      // Procesar si ha llegado el momento
-      if (notification.scheduledTime <= now && !notification.processed) {
-        console.log(`🔔 SW: Ejecutando notificación: ${id}`);
-
-        try {
-          await registration.showNotification(notification.title, {
-            body: notification.body,
-            icon: notification.icon,
-            badge: notification.badge,
-            tag: notification.tag,
-            requireInteraction: notification.requireInteraction,
-            vibrate: notification.vibrate,
-            data: notification.data,
-            actions: [
-              { action: "open", title: "📱 Abrir", icon: "/icons/pwa-64x64.png" },
-              { action: "dismiss", title: "❌ Cerrar", icon: "/icons/pwa-64x64.png" },
-            ],
+    case "CLEAR_CACHE":
+      console.log("🧹 SW: Limpiando cache...");
+      Promise.all([caches.delete(CACHE_NAME), caches.delete(STATIC_CACHE)])
+        .then(() => {
+          event.ports[0].postMessage({
+            type: "CACHE_CLEARED",
+            success: true,
           });
-
-          // Marcar como procesada
-          notification.processed = true;
-          processed.push(id);
-
-          console.log(`✅ SW: Notificación ${id} mostrada correctamente`);
-        } catch (showError) {
-          console.error(`❌ SW: Error mostrando notificación ${id}:`, showError);
-
-          // Incrementar contador de reintentos
-          notification.retryCount = (notification.retryCount || 0) + 1;
-
-          if (notification.retryCount >= 3) {
-            console.error(`❌ SW: Notificación ${id} falló después de 3 intentos`);
-            processed.push(id); // Marcar para eliminar
-          }
-        }
-      }
-    }
-
-    // Limpiar notificaciones procesadas
-    processed.forEach((id) => {
-      notificationQueue.delete(id);
-      deleteNotificationFromDB(id);
-    });
-
-    // Limpiar notificaciones inválidas
-    invalidNotifications.forEach((id) => {
-      notificationQueue.delete(id);
-      deleteNotificationFromDB(id);
-    });
-
-    if (processed.length > 0 || invalidNotifications.length > 0) {
-      console.log(
-        `✅ SW: Procesamiento completado - ${processed.length} procesadas, ${invalidNotifications.length} inválidas eliminadas`
-      );
-    }
-  } catch (error) {
-    console.error("❌ SW: Error en procesamiento de cola:", error);
-  } finally {
-    processingQueue = false;
-  }
-}
-
-// Iniciar procesador de cola
-async function startQueueProcessor() {
-  if (processingQueue) return;
-
-  console.log("⏰ SW: Iniciando procesador de cola (PWA compatible)");
-
-  // Procesamiento inicial
-  processNotificationQueue();
-
-  // 🔥 NUEVO: Múltiples métodos de procesamiento para PWA
-
-  // Método 1: setInterval tradicional
-  const traditionalInterval = setInterval(() => {
-    if (notificationQueue.size > 0) {
-      console.log("⏰ SW: Procesamiento tradicional");
-      processNotificationQueue();
-    }
-  }, 5000);
-
-  // Método 2: setTimeout recursivo (más confiable en PWA)
-  function recursiveProcessing() {
-    setTimeout(() => {
-      if (notificationQueue.size > 0) {
-        console.log("🔄 SW: Procesamiento recursivo");
-        processNotificationQueue();
-      }
-      recursiveProcessing(); // Re-programar
-    }, 5000);
-  }
-  recursiveProcessing();
-
-  // Método 3: Procesamiento basado en mensajes (más robusto)
-  function setupMessageBasedProcessing() {
-    // Auto-procesar cada vez que se añade una notificación
-    const originalSet = notificationQueue.set;
-    notificationQueue.set = function (key, value) {
-      const result = originalSet.call(this, key, value);
-
-      // Programar procesamiento inmediato
-      setTimeout(() => {
-        console.log("📨 SW: Procesamiento por mensaje");
-        processNotificationQueue();
-      }, 1000);
-
-      return result;
-    };
-  }
-  setupMessageBasedProcessing();
-
-  // Método 4: Keep-alive más agresivo para PWA
-  function aggressiveKeepAlive() {
-    setInterval(() => {
-      console.log("💓 SW: Keep-alive agresivo PWA");
-
-      // Forzar procesamiento en keep-alive
-      if (notificationQueue.size > 0) {
-        console.log("🔄 SW: Procesamiento en keep-alive");
-        processNotificationQueue();
-      }
-    }, 15000); // Cada 15 segundos
-  }
-  aggressiveKeepAlive();
-
-  console.log("✅ SW: Procesador de cola PWA iniciado con múltiples métodos");
-}
-
-// 🔥 AÑADIMOS LA FUNCIÓN FALTANTE startKeepAlive()
-function startKeepAlive() {
-  // Limpiar keep-alive anterior
-  if (keepAliveInterval) {
-    clearInterval(keepAliveInterval);
-  }
-
-  keepAliveInterval = setInterval(async () => {
-    console.log("💓 SW: Keep-alive ping");
-
-    // Verificar BD en cada keep-alive
-    const isReady = await ensureDatabaseReady();
-    if (!isReady) {
-      console.warn("⚠️ SW: BD no disponible en keep-alive");
-    }
-
-    // Procesar cola si hay notificaciones
-    if (notificationQueue.size > 0) {
-      processNotificationQueue();
-    }
-  }, 25000);
-}
-
-// 🔥 DEBUG: Obtener información de la cola
-function getNotificationQueueDebug() {
-  return {
-    queueSize: notificationQueue.size,
-    processingQueue: processingQueue,
-    dbReady: dbReady,
-    dbExists: !!db,
-    dbConnected: !!(db && !db.closed),
-    notifications: Array.from(notificationQueue.values()).map((item) => ({
-      id: item.id,
-      title: item.title,
-      scheduledFor:
-        item.scheduledTime && !isNaN(item.scheduledTime)
-          ? new Date(item.scheduledTime).toLocaleString()
-          : "Invalid Date",
-      remainingMs:
-        item.scheduledTime && !isNaN(item.scheduledTime) ? Math.max(0, item.scheduledTime - Date.now()) : NaN,
-      processed: item.processed || false,
-      retryCount: item.retryCount || 0,
-      createdAt: new Date(item.createdAt || Date.now()).toLocaleString(),
-      isValid: !!(item.scheduledTime && !isNaN(item.scheduledTime)),
-    })),
-  };
-}
-
-// 🔥 FUNCIONES GLOBALES PARA DEBUG
-self.getNotificationQueueDebug = getNotificationQueueDebug;
-
-self.forceProcessQueue = () => {
-  console.log("🔄 SW: Forzando procesamiento de cola manual");
-  return processNotificationQueue();
-};
-
-self.clearNotificationQueue = () => {
-  console.log("🧹 SW: Limpiando cola manualmente");
-  notificationQueue.clear();
-  return Promise.resolve();
-};
-
-self.forceReinitDB = async () => {
-  console.log("🔄 SW: Forzando reinicialización manual de BD");
-  dbReady = false;
-  if (db) {
-    db.close();
-  }
-  db = null;
-  return await ensureDatabaseReady();
-};
-
-self.clearInvalidNotifications = () => {
-  console.log("🧹 SW: Limpiando solo notificaciones inválidas");
-  let cleaned = 0;
-
-  for (const [id, notification] of notificationQueue) {
-    if (!notification.scheduledTime || isNaN(notification.scheduledTime)) {
-      notificationQueue.delete(id);
-      deleteNotificationFromDB(id);
-      cleaned++;
-    }
-  }
-
-  console.log(`✅ SW: ${cleaned} notificaciones inválidas limpiadas`);
-  return Promise.resolve(cleaned);
-};
-
-// 🔥 NUEVO: Función para procesar inmediatamente notificaciones vencidas
-self.forceProcessExpired = async () => {
-  console.log("🚨 SW: Forzando procesamiento de notificaciones vencidas");
-  const now = Date.now();
-  let processed = 0;
-
-  for (const [id, notification] of notificationQueue) {
-    if (notification.scheduledTime <= now && !notification.processed) {
-      try {
-        await registration.showNotification(notification.title, {
-          body: notification.body,
-          icon: notification.icon,
-          badge: notification.badge,
-          tag: notification.tag,
-          requireInteraction: true,
-          vibrate: notification.vibrate,
-          data: notification.data,
+        })
+        .catch((error) => {
+          console.error("❌ SW: Error limpiando cache:", error);
+          event.ports[0].postMessage({
+            type: "CACHE_CLEARED",
+            success: false,
+            error: error.message,
+          });
         });
+      break;
 
-        notification.processed = true;
-        processed++;
-        console.log(`✅ SW: Notificación vencida procesada: ${id}`);
-      } catch (error) {
-        console.error(`❌ SW: Error procesando notificación vencida ${id}:`, error);
-      }
-    }
-  }
-
-  console.log(`✅ SW: ${processed} notificaciones vencidas procesadas`);
-  return processed;
-};
-
-// Manejar clicks en notificaciones
-self.addEventListener("notificationclick", (event) => {
-  console.log("🔔 SW: Notificación clickeada:", event.notification.tag);
-
-  event.notification.close();
-
-  // Enviar evento a la aplicación
-  self.clients.matchAll().then((clients) => {
-    if (clients.length > 0) {
-      clients[0].postMessage({
-        type: "NOTIFICATION_CLICKED",
-        tag: event.notification.tag,
-        data: event.notification.data,
+    case "GET_CACHE_STATUS":
+      // Obtener información del estado del cache
+      getCacheStatus().then((status) => {
+        event.ports[0].postMessage({
+          type: "CACHE_STATUS",
+          status: status,
+        });
       });
-    }
-  });
+      break;
 
-  // Abrir la aplicación
-  event.waitUntil(self.clients.openWindow("/"));
+    default:
+      console.log("❓ SW: Tipo de mensaje no reconocido:", type);
+  }
 });
 
-console.log("🚀 SW: Service Worker COMPLETO cargado");
-console.log("🔧 SW: Funciones debug disponibles:");
-console.log("  - self.getNotificationQueueDebug()");
-console.log("  - self.forceProcessQueue()");
-console.log("  - self.clearNotificationQueue()");
-console.log("  - self.forceReinitDB()");
-console.log("  - self.clearInvalidNotifications()");
-console.log("  - self.forceProcessExpired() // 🔥 NUEVO");
+// Función para obtener estado del cache
+async function getCacheStatus() {
+  try {
+    const cacheNames = await caches.keys();
+    const cacheInfo = {};
 
-// Verificación inicial con auto-limpieza
-setTimeout(async () => {
-  await ensureDatabaseReady();
-
-  // Auto-limpiar notificaciones inválidas al iniciar
-  if (typeof self.clearInvalidNotifications === "function") {
-    const cleaned = await self.clearInvalidNotifications();
-    if (cleaned > 0) {
-      console.log(`🧹 SW: Auto-limpieza inicial: ${cleaned} notificaciones inválidas removidas`);
+    for (const cacheName of cacheNames) {
+      const cache = await caches.open(cacheName);
+      const keys = await cache.keys();
+      cacheInfo[cacheName] = {
+        size: keys.length,
+        keys: keys.map((req) => req.url),
+      };
     }
-  }
 
-  console.log("📊 SW: Estado inicial:", {
-    dbReady,
-    dbExists: !!db,
-    dbConnected: !!(db && !db.closed),
-    queueSize: notificationQueue.size,
-  });
-}, 1000);
+    return {
+      caches: cacheInfo,
+      totalCaches: cacheNames.length,
+      currentVersion: CACHE_NAME,
+    };
+  } catch (error) {
+    console.error("❌ SW: Error obteniendo estado del cache:", error);
+    return {
+      error: error.message,
+    };
+  }
+}
+
+// Manejar errores globales del Service Worker
+self.addEventListener("error", (event) => {
+  console.error("❌ SW: Error global:", event.error);
+});
+
+// Manejar errores de promesas no capturadas
+self.addEventListener("unhandledrejection", (event) => {
+  console.error("❌ SW: Promesa rechazada no manejada:", event.reason);
+});
+
+// Notificar a clientes cuando el SW esté listo
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    self.clients.matchAll().then((clients) => {
+      clients.forEach((client) => {
+        client.postMessage({
+          type: "SW_ACTIVATED",
+          version: CACHE_NAME,
+          timestamp: Date.now(),
+        });
+      });
+    })
+  );
+});
+
+console.log("✅ SW: Service Worker limpio cargado (versión sin notificaciones)");
+console.log("📦 SW: Cache configurado:", CACHE_NAME);
+console.log("🎯 SW: Funcionalidades:");
+console.log("  ✅ Cache de recursos estáticos");
+console.log("  ✅ Navegación offline");
+console.log("  ✅ Gestión de versiones");
+console.log("  ✅ Limpieza automática de cache");
+console.log("  ❌ Sistema de notificaciones (eliminado)");
+
+// Funciones de utilidad para debugging (disponibles en DevTools)
+self.getCacheInfo = getCacheStatus;
+self.clearAllCaches = () => {
+  return caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name))));
+};
+self.getCurrentVersion = () => CACHE_NAME;

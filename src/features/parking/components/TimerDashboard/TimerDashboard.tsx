@@ -28,7 +28,9 @@ import {
 import { cn } from "@/lib/utils";
 import type { CarLocation } from "@/types/location";
 import { updateCarLocation } from "@/utils/storage";
-import { notificationManager } from "@/utils/notificationManager";
+// ELIMINADO: import { notificationManager } from "@/utils/notificationManager";
+import { timerManager } from "@/utils/timerManager";
+import { toast } from "sonner";
 
 // --- Interfaces ---
 interface TimerWidget {
@@ -117,26 +119,30 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
       const timers = locationsWithTimers.map(createTimerWidget);
       const sortedTimers = timers.sort((a, b) => (a.expiryTime || 0) - (b.expiryTime || 0));
 
-      const activeNonExpired = sortedTimers.filter((timer) => timer.status !== "expired");
-      const expiredCount = sortedTimers.length - activeNonExpired.length;
-      const totalExtensions = locationsWithTimers.reduce((sum, loc) => sum + (loc.extensionCount || 0), 0);
-      const nextExpiration =
-        activeNonExpired.length > 0 ? Math.min(...activeNonExpired.map((t) => t.expiryTime)) : undefined;
-
       setActiveTimers(sortedTimers);
-      setStats({
-        totalActive: activeNonExpired.length,
-        totalExpired: expiredCount,
-        totalExtensions,
-        nextExpiration: nextExpiration
-          ? new Date(nextExpiration).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-          : "—",
-      });
     };
     updateCoreTimers();
     const interval = setInterval(updateCoreTimers, 30000);
     return () => clearInterval(interval);
   }, [locations]);
+
+  // 🔧 NUEVO: Efecto separado para actualizar estadísticas cuando cambien los timers
+  useEffect(() => {
+    const activeNonExpired = activeTimers.filter((timer) => timer.status !== "expired");
+    const expiredCount = activeTimers.filter((timer) => timer.status === "expired").length;
+    const totalExtensions = activeTimers.reduce((sum, timer) => sum + timer.extensionCount, 0);
+    const nextExpiration =
+      activeNonExpired.length > 0 ? Math.min(...activeNonExpired.map((t) => t.expiryTime)) : undefined;
+
+    setStats({
+      totalActive: activeNonExpired.length,
+      totalExpired: expiredCount,
+      totalExtensions,
+      nextExpiration: nextExpiration
+        ? new Date(nextExpiration).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "—",
+    });
+  }, [activeTimers]); // 🔧 Se ejecuta cada vez que cambien los activeTimers
 
   // --- NUEVO useEffect para actualizaciones de UI fluidas ---
   useEffect(() => {
@@ -166,49 +172,71 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
     return () => clearInterval(liveInterval);
   }, [activeTimers]); // Se reactiva si la lista de timers cambia
 
-  const rescheduleNotifications = (timerId: string, newExpiryTime: number, reminderMinutes?: number) => {
-    notificationManager.cancelNotification(`${timerId}-reminder`);
-    notificationManager.cancelNotification(`${timerId}-expiry`);
-    const now = Date.now();
-    if (reminderMinutes) {
-      const reminderTime = newExpiryTime - reminderMinutes * 60 * 1000;
-      if (reminderTime > now) {
-        notificationManager.scheduleNotification(
-          `${timerId}-reminder`,
-          reminderTime - now,
-          "⏰ Recordatorio de Parking",
-          `Tu parking expira en ${reminderMinutes} minutos`
-        );
-      }
-    }
-    const timeUntilExpiry = newExpiryTime - now;
-    if (timeUntilExpiry > 0) {
-      notificationManager.scheduleNotification(
-        `${timerId}-expiry`,
-        timeUntilExpiry,
-        "🚨 Parking Expirado",
-        "Tu tiempo de parking ha expirado"
-      );
-    }
-  };
-
+  // 🔥 FUNCIÓN PARA EXTENDER TIMER (con actualización inmediata del estado local)
   const extendTimer = (timerId: string, minutes: number) => {
     const location = locations.find((loc) => loc.id === timerId);
     if (!location || !location.expiryTime) return;
+
     const newExpiryTime = location.expiryTime + minutes * 60 * 1000;
     const newExtensionCount = (location.extensionCount || 0) + 1;
     const updates = { expiryTime: newExpiryTime, extensionCount: newExtensionCount };
+
+    // Actualizar en storage
     updateCarLocation(timerId, updates);
+
+    // 🔧 CRÍTICO: Actualizar estado local inmediatamente para UI responsive
+    setActiveTimers((prevTimers) =>
+      prevTimers.map((timer) =>
+        timer.id === timerId
+          ? {
+              ...timer,
+              expiryTime: newExpiryTime,
+              extensionCount: newExtensionCount,
+              status: "extended" as const,
+            }
+          : timer
+      )
+    );
+
+    // Notificar al componente padre
     onLocationUpdated?.(timerId, updates);
-    rescheduleNotifications(timerId, newExpiryTime, location.reminderMinutes);
+
+    // Re-programar timer con timerManager
+    const updatedLocation = { ...location, ...updates };
+    timerManager.scheduleTimer(updatedLocation);
+
+    // 🔧 MEJORADO: Toast con información completa de la ubicación
+    const displayName =
+      location.note ||
+      location.address ||
+      `Lat: ${location.latitude.toFixed(4)}, Lng: ${location.longitude.toFixed(4)}`;
+    toast.success(`⏰ Timer extendido ${minutes} minutos para: ${displayName}`, {
+      duration: 4000,
+    });
   };
 
+  // 🔥 FUNCIÓN PARA CANCELAR TIMER (con actualización inmediata del estado local)
   const cancelTimer = (timerId: string) => {
+    const location = locations.find((loc) => loc.id === timerId);
     const updates = { expiryTime: undefined, reminderMinutes: undefined, extensionCount: undefined };
+
+    // Actualizar en storage
     updateCarLocation(timerId, updates);
+
+    // 🔧 CRÍTICO: Remover del estado local inmediatamente
+    setActiveTimers((prevTimers) => prevTimers.filter((timer) => timer.id !== timerId));
+
+    // Notificar al componente padre
     onLocationUpdated?.(timerId, updates);
-    notificationManager.cancelNotification(`${timerId}-reminder`);
-    notificationManager.cancelNotification(`${timerId}-expiry`);
+
+    // Cancelar timer en timerManager
+    timerManager.cancelTimer(timerId);
+
+    // 🔧 MEJORADO: Toast con información completa de la ubicación
+    const displayName = location?.note || location?.address || `Ubicación ${location?.id}`;
+    toast.info(`⏹️ Timer cancelado para: ${displayName}`, {
+      duration: 4000,
+    });
   };
 
   const getStatusIcon = (status: TimerWidget["status"]) => {

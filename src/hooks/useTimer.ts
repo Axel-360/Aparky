@@ -1,6 +1,5 @@
-// src/hooks/useTimer.ts - Versión corregida sin errores TypeScript
+// src/hooks/useTimer.ts
 import { useState, useEffect, useRef, useCallback } from "react";
-import { notificationManager } from "@/utils/notificationManager";
 
 export interface TimerState {
   timeLeft: number;
@@ -10,7 +9,17 @@ export interface TimerState {
   originalDuration: number;
 }
 
-export const useTimer = (initialDuration: number = 0) => {
+// 🆕 TIPOS PARA CALLBACKS
+export interface TimerCallbacks {
+  onFinish?: (duration: number) => void;
+  onTick?: (timeLeft: number) => void;
+  onStart?: (duration: number) => void;
+  onPause?: (timeLeft: number) => void;
+  onResume?: (timeLeft: number) => void;
+  onStop?: () => void;
+}
+
+export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks) => {
   const [timerState, setTimerState] = useState<TimerState>({
     timeLeft: initialDuration,
     isRunning: false,
@@ -21,10 +30,46 @@ export const useTimer = (initialDuration: number = 0) => {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const endTimeRef = useRef<number | null>(null);
-  const notificationIdRef = useRef<string | null>(null);
+  // ELIMINADO: const notificationIdRef = useRef<string | null>(null);
 
   /**
-   * 🔥 Iniciar temporizador con notificación programada
+   * 🔥 Función interna para countdown
+   */
+  const startCountdown = useCallback(
+    (targetEndTime: number) => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+
+      intervalRef.current = setInterval(() => {
+        const now = Date.now();
+        const remaining = Math.max(0, targetEndTime - now);
+
+        setTimerState((prev) => {
+          const newState = { ...prev, timeLeft: remaining };
+
+          // Ejecutar callback onTick si existe
+          if (callbacks?.onTick) {
+            callbacks.onTick(remaining);
+          }
+
+          return newState;
+        });
+
+        if (remaining <= 0) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          finishTimer();
+        }
+      }, 100); // Actualizar cada 100ms para mayor precisión
+    },
+    [callbacks]
+  );
+
+  /**
+   * 🔥 Iniciar temporizador SIN notificaciones push
    */
   const startTimer = useCallback(
     async (duration?: number) => {
@@ -37,72 +82,27 @@ export const useTimer = (initialDuration: number = 0) => {
       // Calcular tiempo de finalización
       const endTime = Date.now() + finalDuration;
       endTimeRef.current = endTime;
-
-      // Generar ID único para la notificación
-      const notificationId = `timer-${Date.now()}`;
-      notificationIdRef.current = notificationId;
-
-      // 🔥 CRÍTICO: Programar notificación ANTES de iniciar el timer visual
-      try {
-        // 🔥 CORREGIDO: Usar await correctamente
-        await notificationManager.scheduleNotification(
-          notificationId,
-          finalDuration, // delay en ms
-          "⏰ ¡Tiempo agotado!",
-          "Tu temporizador de aparcamiento ha finalizado. Es hora de mover el coche.",
-          {
-            tag: "parking-timer",
-            requireInteraction: true,
-            vibrate: [500, 200, 500, 200, 500],
-            icon: "/icons/pwa-192x192.png",
-            badge: "/icons/pwa-64x64.png",
-          }
-        );
-
-        console.log("✅ Notificación background programada");
-      } catch (error) {
-        console.warn("⚠️ Error programando notificación background:", error);
-        // Continuar de todos modos con el timer visual
-      }
-
       // Actualizar estado
-      setTimerState({
-        timeLeft: finalDuration,
+      setTimerState((prev) => ({
+        ...prev,
         isRunning: true,
         isPaused: false,
         isFinished: false,
-        originalDuration: finalDuration,
-      });
+        timeLeft: finalDuration,
+      }));
+
+      // Ejecutar callback onStart si existe
+      if (callbacks?.onStart) {
+        callbacks.onStart(finalDuration);
+      }
 
       // Iniciar countdown visual
       startCountdown(endTime);
+
+      console.log(`✅ Timer iniciado (solo UI callbacks)`);
     },
-    [timerState.timeLeft]
+    [timerState.timeLeft, callbacks, startCountdown]
   );
-
-  /**
-   * 🔥 Countdown visual que se sincroniza con el tiempo real
-   */
-  const startCountdown = (endTime: number) => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    intervalRef.current = setInterval(() => {
-      const now = Date.now();
-      const remaining = Math.max(0, endTime - now);
-
-      setTimerState((prev) => ({
-        ...prev,
-        timeLeft: remaining,
-      }));
-
-      // Verificar si terminó
-      if (remaining <= 0) {
-        finishTimer();
-      }
-    }, 1000); // Actualizar cada segundo para precisión
-  };
 
   /**
    * 🔥 Pausar temporizador
@@ -112,16 +112,10 @@ export const useTimer = (initialDuration: number = 0) => {
 
     console.log("⏸️ Pausando temporizador");
 
-    // Parar countdown visual
+    // Limpiar interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
-    }
-
-    // Cancelar notificación programada
-    if (notificationIdRef.current) {
-      notificationManager.cancelNotification(notificationIdRef.current);
-      notificationIdRef.current = null;
     }
 
     setTimerState((prev) => ({
@@ -129,12 +123,17 @@ export const useTimer = (initialDuration: number = 0) => {
       isPaused: true,
       isRunning: false,
     }));
-  }, [timerState.isRunning, timerState.isPaused]);
+
+    // Ejecutar callback onPause si existe
+    if (callbacks?.onPause) {
+      callbacks.onPause(timerState.timeLeft);
+    }
+  }, [timerState.isRunning, timerState.isPaused, timerState.timeLeft, callbacks]);
 
   /**
    * 🔥 Reanudar temporizador
    */
-  const resumeTimer = useCallback(async () => {
+  const resumeTimer = useCallback(() => {
     if (!timerState.isPaused || timerState.timeLeft <= 0) return;
 
     console.log("▶️ Reanudando temporizador");
@@ -143,35 +142,20 @@ export const useTimer = (initialDuration: number = 0) => {
     const newEndTime = Date.now() + timerState.timeLeft;
     endTimeRef.current = newEndTime;
 
-    // Programar nueva notificación
-    const notificationId = `timer-resumed-${Date.now()}`;
-    notificationIdRef.current = notificationId;
-
-    try {
-      await notificationManager.scheduleNotification(
-        notificationId,
-        timerState.timeLeft, // delay restante
-        "⏰ ¡Tiempo agotado!",
-        "Tu temporizador de aparcamiento ha finalizado.",
-        {
-          tag: "parking-timer",
-          requireInteraction: true,
-          vibrate: [500, 200, 500, 200, 500],
-        }
-      );
-    } catch (error) {
-      console.error("❌ Error programando notificación al reanudar:", error);
-    }
-
     setTimerState((prev) => ({
       ...prev,
       isPaused: false,
       isRunning: true,
     }));
 
+    // Ejecutar callback onResume si existe
+    if (callbacks?.onResume) {
+      callbacks.onResume(timerState.timeLeft);
+    }
+
     // Reanudar countdown
     startCountdown(newEndTime);
-  }, [timerState.isPaused, timerState.timeLeft]);
+  }, [timerState.isPaused, timerState.timeLeft, callbacks, startCountdown]);
 
   /**
    * 🔥 Detener temporizador completamente
@@ -185,12 +169,6 @@ export const useTimer = (initialDuration: number = 0) => {
       intervalRef.current = null;
     }
 
-    // Cancelar notificación
-    if (notificationIdRef.current) {
-      notificationManager.cancelNotification(notificationIdRef.current);
-      notificationIdRef.current = null;
-    }
-
     // Reset estado
     setTimerState((prev) => ({
       ...prev,
@@ -201,7 +179,12 @@ export const useTimer = (initialDuration: number = 0) => {
     }));
 
     endTimeRef.current = null;
-  }, []);
+
+    // Ejecutar callback onStop si existe
+    if (callbacks?.onStop) {
+      callbacks.onStop();
+    }
+  }, [callbacks]);
 
   /**
    * 🔥 Finalizar temporizador
@@ -217,7 +200,7 @@ export const useTimer = (initialDuration: number = 0) => {
 
     // Limpiar referencias
     endTimeRef.current = null;
-    notificationIdRef.current = null;
+    // ELIMINADO: notificationIdRef.current = null;
 
     // Actualizar estado
     setTimerState((prev) => ({
@@ -228,20 +211,12 @@ export const useTimer = (initialDuration: number = 0) => {
       isFinished: true,
     }));
 
-    // 🔥 CORREGIDO: Mostrar notificación inmediata como backup usando el método correcto
-    if (document.hasFocus()) {
-      // Usar el método existente del notificationManager
-      notificationManager
-        .showNotification("⏰ ¡Tiempo agotado!", "Tu temporizador ha finalizado.", {
-          tag: "timer-finished-backup",
-          requireInteraction: false,
-        })
-        .catch((error) => {
-          console.warn("⚠️ Error mostrando notificación backup:", error);
-        });
+    // Ejecutar callback onFinish si existe
+    if (callbacks?.onFinish) {
+      callbacks.onFinish(timerState.originalDuration);
     }
 
-    // Disparar evento personalizado
+    // Disparar evento personalizado (mantenido para compatibilidad)
     window.dispatchEvent(
       new CustomEvent("timerFinished", {
         detail: {
@@ -250,7 +225,7 @@ export const useTimer = (initialDuration: number = 0) => {
         },
       })
     );
-  }, [timerState.originalDuration]);
+  }, [timerState.originalDuration, callbacks]);
 
   /**
    * 🔥 Restablecer temporizador
@@ -327,9 +302,6 @@ export const useTimer = (initialDuration: number = 0) => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
-      if (notificationIdRef.current) {
-        notificationManager.cancelNotification(notificationIdRef.current);
-      }
     };
   }, []);
 
@@ -347,6 +319,9 @@ export const useTimer = (initialDuration: number = 0) => {
 
         if (remaining <= 0) {
           finishTimer();
+        } else {
+          // Reajustar countdown con el tiempo correcto
+          startCountdown(endTimeRef.current);
         }
       }
     };
@@ -358,8 +333,9 @@ export const useTimer = (initialDuration: number = 0) => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleVisibilityChange);
     };
-  }, [timerState.isRunning, finishTimer]);
+  }, [timerState.isRunning, finishTimer, startCountdown]);
 
+  // Retornar API del hook
   return {
     // Estado
     ...timerState,
@@ -370,23 +346,21 @@ export const useTimer = (initialDuration: number = 0) => {
     resume: resumeTimer,
     stop: stopTimer,
     reset: resetTimer,
+    finish: finishTimer,
+
+    // Configuración
     setDuration,
 
-    // Métodos de información
+    // Utilidades
     getFormattedTime,
     getProgress,
 
     // Estado calculado
-    canStart: !timerState.isRunning && timerState.timeLeft > 0,
-    canPause: timerState.isRunning && !timerState.isPaused,
-    canResume: timerState.isPaused,
-    canStop: timerState.isRunning || timerState.isPaused,
+    isActive: timerState.isRunning || timerState.isPaused,
+    hasTimeLeft: timerState.timeLeft > 0,
 
-    // Debug info
-    debugInfo: {
-      endTime: endTimeRef.current,
-      notificationId: notificationIdRef.current,
-      hasInterval: !!intervalRef.current,
-    },
+    // Información adicional
+    progressPercentage: getProgress(),
+    formattedTime: getFormattedTime(),
   };
 };

@@ -1,4 +1,4 @@
-// src/App.tsx - VERSIÓN FINAL CON useUIState + useAppData (FUNCIONANDO)
+// src/App.tsx - VERSIÓN COMPLETA MODIFICADA: Sin notificaciones push, manteniendo UI
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Toaster } from "@/shared/ui/sonner";
 import { ThemeProvider } from "@/shared/ui/theme-provider";
@@ -25,7 +25,7 @@ import Settings from "./shared/components/Settings/Settings";
 import Stats from "./shared/components/Stats/Stats";
 import Navigation from "./features/navigation/components/Navigation/Navigation";
 import LocationPermissions from "./features/navigation/components/LocationPermissions/LocationPermissions";
-import { NotificationSetup } from "@/components/notifications/NotificationSetup";
+// ELIMINADO: import { NotificationSetup } from "@/components/notifications/NotificationSetup";
 
 // Contexto y hooks
 import { AppProvider } from "./contexts/AppContext";
@@ -35,28 +35,73 @@ import { useGeolocation } from "./features/location/hooks/useGeolocation";
 import type { CarLocation } from "./types/location";
 import { initializeTheme } from "./utils/preferences";
 import { timerManager } from "./utils/timerManager";
-import { unifiedNotificationSystem } from "@/utils/unifiedNotificationSystem";
 import { useSmartLocation } from "./utils/locationDefaults";
 import { toast } from "sonner";
 
-// 🔥 DECLARACIÓN GLOBAL SEGURA
+// 🔥 DECLARACIÓN GLOBAL SIMPLIFICADA (sin notificaciones)
 declare global {
   interface Window {
     timerManager?: typeof timerManager;
-    unifiedNotificationSystem?: typeof unifiedNotificationSystem;
-    notificationManager?: any;
-    testNotificationSystem?: () => Promise<void>;
+    testTimerSystem?: () => Promise<void>; // Solo test de timers
   }
 }
 
-// 🔥 EXPOSICIÓN GLOBAL SEGURA
+// 🆕 CONFIGURAR CALLBACKS PARA MOSTRAR NOTIFICACIONES EN UI
+const setupTimerCallbacks = () => {
+  // Callback para cuando expira un parking
+  timerManager.onTimerExpiration((locationId: string, locationNote: string) => {
+    console.log(`🚨 Timer expirado - ejecutando callback UI: ${locationNote}`);
+
+    toast.error(`🚨 Parking expirado: ${locationNote}`, {
+      duration: 15000, // 15 segundos para que se vea bien
+      position: "top-center",
+      action: {
+        label: "Ver ubicación",
+        onClick: () => {
+          console.log("Navegando a ubicación expirada:", locationId);
+          // Aquí puedes añadir lógica para navegar al mapa o mostrar la ubicación
+        },
+      },
+      style: {
+        background: "#fef2f2",
+        color: "#dc2626",
+        border: "2px solid #fca5a5",
+      },
+    });
+  });
+
+  // Callback para recordatorios
+  timerManager.onTimerReminder((locationId: string, locationNote: string, minutesLeft: number) => {
+    console.log(`⏰ Recordatorio - ejecutando callback UI: ${locationNote}, ${minutesLeft} minutos`);
+
+    toast.warning(`⏰ Recordatorio: ${locationNote} expira en ${minutesLeft} minutos`, {
+      duration: 10000, // 10 segundos
+      position: "top-center",
+      action: {
+        label: "Extender",
+        onClick: () => {
+          console.log("Extendiendo timer:", locationId);
+          // Aquí puedes añadir lógica para extender el timer
+        },
+      },
+      style: {
+        background: "#fefce8",
+        color: "#d97706",
+        border: "2px solid #fde68a",
+      },
+    });
+  });
+
+  console.log("✅ Callbacks de timer configurados para mostrar en UI");
+};
+
+// 🔥 EXPOSICIÓN GLOBAL SEGURA (solo timerManager)
 if (typeof window !== "undefined") {
   try {
     window.timerManager = timerManager;
-    window.unifiedNotificationSystem = unifiedNotificationSystem;
-    console.log("🔧 TimerManager y UnifiedNotificationSystem expuestos globalmente");
+    console.log("🔧 TimerManager expuesto globalmente");
   } catch (exposureError) {
-    console.error("❌ Error exponiendo sistemas globalmente:", exposureError);
+    console.error("❌ Error exponiendo timerManager globalmente:", exposureError);
   }
 }
 
@@ -155,7 +200,7 @@ function AppContent() {
   // Referencias para scroll
   const mapSectionRef = useRef<HTMLDivElement>(null);
 
-  // 🚨 VERIFICACIÓN DE DEPENDENCIAS CRÍTICAS
+  // 🚨 VERIFICACIÓN DE DEPENDENCIAS CRÍTICAS (sin notificaciones)
   useEffect(() => {
     const verifyDependencies = async () => {
       try {
@@ -163,10 +208,6 @@ function AppContent() {
 
         if (!timerManager || typeof timerManager.scheduleTimer !== "function") {
           throw new Error("timerManager no está completamente disponible");
-        }
-
-        if (!unifiedNotificationSystem || typeof unifiedNotificationSystem.cleanup !== "function") {
-          console.warn("⚠️ unifiedNotificationSystem no completamente disponible - usando fallback");
         }
 
         console.log("✅ Dependencias críticas verificadas");
@@ -184,7 +225,7 @@ function AppContent() {
     verifyDependencies();
   }, []);
 
-  // 🔥 LISTENER PARA NOTIFICACIONES DE RESPALDO
+  // 🔥 LISTENER PARA NOTIFICACIONES DE RESPALDO (simplificado)
   useEffect(() => {
     if (!isInitialized) return;
 
@@ -300,11 +341,9 @@ function AppContent() {
   const timerDashboardProps = useMemo(
     () => ({
       locations,
-      onTimerExtend: handleTimerExtend,
-      onTimerCancel: handleTimerCancel,
-      onNavigateToLocation: handleNavigateToLocation,
+      onLocationUpdated: handleLocationUpdate,
     }),
-    [locations, handleTimerExtend, handleTimerCancel, handleNavigateToLocation]
+    [locations, handleLocationUpdate]
   );
 
   const savedLocationsProps = useMemo(
@@ -402,7 +441,7 @@ function AppContent() {
     ]
   );
 
-  // 🚨 INICIALIZACIÓN PRINCIPAL CON MANEJO DE ERRORES MEJORADO
+  // 🚨 INICIALIZACIÓN PRINCIPAL CON MANEJO DE ERRORES MEJORADO (sin notificaciones)
   useEffect(() => {
     if (!isInitialized) return;
 
@@ -417,7 +456,7 @@ function AppContent() {
       hasRun = true; // 🔥 MARCAR COMO EJECUTADO
 
       try {
-        console.log("🚀 Iniciando aplicación con manejo de errores mejorado...");
+        console.log("🚀 Iniciando aplicación (sin notificaciones push)...");
 
         // 1. Inicializar tema
         try {
@@ -425,6 +464,14 @@ function AppContent() {
           console.log("✅ Tema inicializado");
         } catch (themeError) {
           console.error("❌ Error inicializando tema:", themeError);
+        }
+
+        // 🆕 CONFIGURAR CALLBACKS DEL TIMER PARA UI
+        try {
+          setupTimerCallbacks();
+          console.log("✅ Callbacks de timer configurados");
+        } catch (callbackError) {
+          console.error("❌ Error configurando callbacks:", callbackError);
         }
 
         // 2. Sincronizar timers con ubicaciones del hook
@@ -468,7 +515,7 @@ function AppContent() {
           console.error("❌ Error con geolocalización:", geoError);
         }
 
-        // 4. Configurar listeners móviles
+        // 4. Configurar listeners móviles (simplificado)
         try {
           setupMobileEventListeners();
           console.log("📱 Event listeners configurados");
@@ -476,7 +523,7 @@ function AppContent() {
           console.error("❌ Error configurando listeners:", listenerError);
         }
 
-        console.log("🎉 Aplicación inicializada completamente");
+        console.log("🎉 Aplicación inicializada completamente (sin notificaciones push)");
       } catch (criticalError) {
         console.error("❌ Error crítico inesperado:", criticalError);
         console.error("Stack trace:", criticalError instanceof Error ? criticalError.stack : "No stack available");
@@ -510,25 +557,13 @@ function AppContent() {
           }
         };
 
-        const handleNotificationClick = (event: any) => {
-          try {
-            console.log("🔔 Notificación clickeada:", event.detail);
-          } catch (error) {
-            console.error("❌ Error manejando click de notificación:", error);
-          }
-        };
-
-        const handleNotificationFailed = (event: any) => {
-          try {
-            console.warn("⚠️ Notificación falló:", event.detail);
-          } catch (error) {
-            console.error("❌ Error manejando fallo de notificación:", error);
-          }
-        };
+        // ELIMINADO: listeners de notificaciones
+        // const handleNotificationClick = (event: any) => { ... }
+        // const handleNotificationFailed = (event: any) => { ... }
 
         window.addEventListener("focus", handleFocus);
-        window.addEventListener("notificationClick", handleNotificationClick);
-        window.addEventListener("notificationFailed", handleNotificationFailed);
+        // ELIMINADO: window.addEventListener("notificationClick", handleNotificationClick);
+        // ELIMINADO: window.addEventListener("notificationFailed", handleNotificationFailed);
 
         console.log("📱 Event listeners móviles configurados");
       } catch (error) {
@@ -538,10 +573,8 @@ function AppContent() {
 
     const cleanup = () => {
       try {
-        if (unifiedNotificationSystem && typeof unifiedNotificationSystem.cleanup === "function") {
-          unifiedNotificationSystem.cleanup();
-          console.log("🧹 Sistema unificado limpiado");
-        }
+        timerManager.cleanup();
+        console.log("🧹 TimerManager limpiado");
       } catch (error) {
         console.error("❌ Error en cleanup:", error);
       }
@@ -621,9 +654,7 @@ function AppContent() {
       <UpdateNotification isVisible={hasUpdate} onUpdate={updateApp} onDismiss={dismissUpdate} />
       <OfflineIndicator isOffline={isOffline} />
 
-      <ErrorBoundary>
-        <NotificationSetup />
-      </ErrorBoundary>
+      {/* ELIMINADO: <ErrorBoundary><NotificationSetup /></ErrorBoundary> */}
 
       {globalError && (
         <Alert className="fixed top-4 left-4 right-4 z-50 mx-auto max-w-md bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800">
@@ -673,7 +704,20 @@ function AppContent() {
         </ErrorBoundary>
       )}
 
-      <Toaster />
+      {/* Toast notifications - MANTENIDAS para UI */}
+      <Toaster
+        position="top-center"
+        expand={true}
+        richColors={true}
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: "hsl(var(--background))",
+            color: "hsl(var(--foreground))",
+            border: "1px solid hsl(var(--border))",
+          },
+        }}
+      />
     </ThemeProvider>
   );
 }
@@ -692,21 +736,21 @@ function App() {
   );
 }
 
-// 🔥 FUNCIÓN DE TEST GLOBAL SEGURA
+// 🔥 FUNCIÓN DE TEST GLOBAL SEGURA (solo timers)
 if (typeof window !== "undefined") {
-  window.testNotificationSystem = async () => {
+  window.testTimerSystem = async () => {
     try {
-      console.log("🧪 Iniciando test completo del sistema");
+      console.log("🧪 Iniciando test del sistema de timers");
       if (timerManager && typeof timerManager.testTimerSystem === "function") {
         await timerManager.testTimerSystem();
-        alert("Tests completados - revisa la consola para ver los resultados");
+        alert("Tests de timers completados - revisa la consola para ver los resultados");
       } else {
         console.error("❌ timerManager.testTimerSystem no disponible");
-        alert("Error: Sistema de test no disponible");
+        alert("Error: Sistema de test de timers no disponible");
       }
     } catch (error) {
       console.error("❌ Error en tests:", error);
-      alert("Error en tests del sistema");
+      alert("Error en tests del sistema de timers");
     }
   };
 }
