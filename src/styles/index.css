@@ -156,7 +156,7 @@ Usamos valores altos y !important para garantizar el orden de las capas.
 /* Deben estar por encima de todo */
 [data-sonner-toast],
 [data-sonner-toaster] {
-  z-index: 2000 !important;
+  z-index: 9999 !important;
 }
 
 .custom-toast {
