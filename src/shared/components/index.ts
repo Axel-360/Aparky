@@ -1,3 +1,3 @@
-export { default as Header } from "./Header/Header";
-export { default as Settings } from "./Settings/Settings";
-export { default as Stats } from "./Stats/Stats";
+export { default as Header } from "./Header";
+export { default as Settings } from "./Settings";
+export { default as Stats } from "./Stats";

@@ -1,4 +1,4 @@
-// src/features/location/components/ProximitySearch/ProximitySearch.tsx
+// src/features/location/components/ProximitySearch.tsx
 import React, { useState, useEffect } from "react";
 import type { CarLocation } from "@/types/location";
 import {

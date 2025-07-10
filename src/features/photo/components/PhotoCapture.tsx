@@ -1,4 +1,4 @@
-// src/features/photo/components/PhotoCapture/PhotoCapture.tsx - VERSIÓN CONSERVADORA
+// src/features/photo/components/PhotoCapture.tsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   Card,
@@ -19,7 +19,6 @@ interface PhotoCaptureProps {
   quality?: "low" | "medium" | "high";
 }
 
-// Solo mantenemos la mejora de configuración de calidad (funciona bien)
 const getQualitySettings = (quality: "low" | "medium" | "high") => {
   switch (quality) {
     case "low":
@@ -31,7 +30,6 @@ const getQualitySettings = (quality: "low" | "medium" | "high") => {
   }
 };
 
-// Solo mejoramos la compresión para que use WebP si está disponible
 const compressImage = (file: File, quality: "low" | "medium" | "high"): Promise<string> => {
   return new Promise((resolve) => {
     const canvas = document.createElement("canvas");
@@ -53,11 +51,9 @@ const compressImage = (file: File, quality: "low" | "medium" | "high"): Promise<
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
 
-      // 🚀 SOLO ESTA MEJORA: Intentar WebP, si no funciona usar JPEG
       let format = "image/webp";
       let finalQuality = settings.quality;
 
-      // Test rápido de soporte WebP
       const testWebP = canvas.toDataURL("image/webp");
       if (!testWebP.startsWith("data:image/webp")) {
         format = "image/jpeg";
@@ -77,7 +73,6 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ photos, onPhotosChange, max
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // 🚀 SOLO ESTA MEJORA: Cleanup de streams al desmontar
   useEffect(() => {
     return () => {
       if (streamRef.current) {
@@ -87,7 +82,6 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ photos, onPhotosChange, max
     };
   }, []);
 
-  // TU FUNCIÓN ORIGINAL - SIN CAMBIOS
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length + photos.length > maxPhotos) {
@@ -98,7 +92,6 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ photos, onPhotosChange, max
     const compressedPhotos: string[] = [];
     for (const file of files) {
       if (file.type.startsWith("image/")) {
-        // Solo cambio: usar la nueva función de compresión
         compressedPhotos.push(await compressImage(file, quality));
       }
     }
@@ -107,7 +100,6 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ photos, onPhotosChange, max
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // TU FUNCIÓN ORIGINAL - SIN CAMBIOS
   const startCamera = async () => {
     try {
       setIsCapturing(true);
@@ -126,7 +118,6 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ photos, onPhotosChange, max
     }
   };
 
-  // TU FUNCIÓN ORIGINAL - CON PEQUEÑA MEJORA
   const capturePhoto = () => {
     if (!videoRef.current) return;
 
@@ -137,7 +128,6 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ photos, onPhotosChange, max
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0);
 
-    // Solo mejora: usar WebP si está disponible
     let format = "image/webp";
     const testWebP = canvas.toDataURL("image/webp");
     if (!testWebP.startsWith("data:image/webp")) {
@@ -149,7 +139,6 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ photos, onPhotosChange, max
     stopCamera();
   };
 
-  // TU FUNCIÓN ORIGINAL - SIN CAMBIOS
   const stopCamera = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -158,14 +147,12 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ photos, onPhotosChange, max
     setIsCapturing(false);
   };
 
-  // TU FUNCIÓN ORIGINAL - SIN CAMBIOS
   const removePhoto = (index: number) => {
     onPhotosChange(photos.filter((_, i) => i !== index));
   };
 
   const canAddMore = photos.length < maxPhotos;
 
-  // TU JSX ORIGINAL - SIN CAMBIOS (excepto display del formato usado)
   return (
     <Card>
       <CardHeader>

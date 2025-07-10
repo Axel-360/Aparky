@@ -9,7 +9,6 @@ export interface TimerState {
   originalDuration: number;
 }
 
-// 🆕 TIPOS PARA CALLBACKS
 export interface TimerCallbacks {
   onFinish?: (duration: number) => void;
   onTick?: (timeLeft: number) => void;
@@ -30,11 +29,7 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const endTimeRef = useRef<number | null>(null);
-  // ELIMINADO: const notificationIdRef = useRef<string | null>(null);
 
-  /**
-   * 🔥 Función interna para countdown
-   */
   const startCountdown = useCallback(
     (targetEndTime: number) => {
       if (intervalRef.current) {
@@ -48,7 +43,6 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
         setTimerState((prev) => {
           const newState = { ...prev, timeLeft: remaining };
 
-          // Ejecutar callback onTick si existe
           if (callbacks?.onTick) {
             callbacks.onTick(remaining);
           }
@@ -63,14 +57,11 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
           }
           finishTimer();
         }
-      }, 100); // Actualizar cada 100ms para mayor precisión
+      }, 100);
     },
     [callbacks]
   );
 
-  /**
-   * 🔥 Iniciar temporizador SIN notificaciones push
-   */
   const startTimer = useCallback(
     async (duration?: number) => {
       const finalDuration = duration || timerState.timeLeft;
@@ -79,10 +70,8 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
 
       console.log(`⏰ Iniciando temporizador: ${finalDuration}ms`);
 
-      // Calcular tiempo de finalización
       const endTime = Date.now() + finalDuration;
       endTimeRef.current = endTime;
-      // Actualizar estado
       setTimerState((prev) => ({
         ...prev,
         isRunning: true,
@@ -91,12 +80,10 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
         timeLeft: finalDuration,
       }));
 
-      // Ejecutar callback onStart si existe
       if (callbacks?.onStart) {
         callbacks.onStart(finalDuration);
       }
 
-      // Iniciar countdown visual
       startCountdown(endTime);
 
       console.log(`✅ Timer iniciado (solo UI callbacks)`);
@@ -104,15 +91,11 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
     [timerState.timeLeft, callbacks, startCountdown]
   );
 
-  /**
-   * 🔥 Pausar temporizador
-   */
   const pauseTimer = useCallback(() => {
     if (!timerState.isRunning || timerState.isPaused) return;
 
     console.log("⏸️ Pausando temporizador");
 
-    // Limpiar interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -124,21 +107,16 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
       isRunning: false,
     }));
 
-    // Ejecutar callback onPause si existe
     if (callbacks?.onPause) {
       callbacks.onPause(timerState.timeLeft);
     }
   }, [timerState.isRunning, timerState.isPaused, timerState.timeLeft, callbacks]);
 
-  /**
-   * 🔥 Reanudar temporizador
-   */
   const resumeTimer = useCallback(() => {
     if (!timerState.isPaused || timerState.timeLeft <= 0) return;
 
     console.log("▶️ Reanudando temporizador");
 
-    // Calcular nuevo tiempo de finalización
     const newEndTime = Date.now() + timerState.timeLeft;
     endTimeRef.current = newEndTime;
 
@@ -148,28 +126,21 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
       isRunning: true,
     }));
 
-    // Ejecutar callback onResume si existe
     if (callbacks?.onResume) {
       callbacks.onResume(timerState.timeLeft);
     }
 
-    // Reanudar countdown
     startCountdown(newEndTime);
   }, [timerState.isPaused, timerState.timeLeft, callbacks, startCountdown]);
 
-  /**
-   * 🔥 Detener temporizador completamente
-   */
   const stopTimer = useCallback(() => {
     console.log("⏹️ Deteniendo temporizador");
 
-    // Limpiar interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
 
-    // Reset estado
     setTimerState((prev) => ({
       ...prev,
       isRunning: false,
@@ -180,29 +151,21 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
 
     endTimeRef.current = null;
 
-    // Ejecutar callback onStop si existe
     if (callbacks?.onStop) {
       callbacks.onStop();
     }
   }, [callbacks]);
 
-  /**
-   * 🔥 Finalizar temporizador
-   */
   const finishTimer = useCallback(() => {
     console.log("✅ Temporizador finalizado");
 
-    // Limpiar interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
 
-    // Limpiar referencias
     endTimeRef.current = null;
-    // ELIMINADO: notificationIdRef.current = null;
 
-    // Actualizar estado
     setTimerState((prev) => ({
       ...prev,
       timeLeft: 0,
@@ -211,12 +174,10 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
       isFinished: true,
     }));
 
-    // Ejecutar callback onFinish si existe
     if (callbacks?.onFinish) {
       callbacks.onFinish(timerState.originalDuration);
     }
 
-    // Disparar evento personalizado (mantenido para compatibilidad)
     window.dispatchEvent(
       new CustomEvent("timerFinished", {
         detail: {
@@ -227,9 +188,6 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
     );
   }, [timerState.originalDuration, callbacks]);
 
-  /**
-   * 🔥 Restablecer temporizador
-   */
   const resetTimer = useCallback(
     (newDuration?: number) => {
       console.log("🔄 Restableciendo temporizador");
@@ -248,9 +206,6 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
     [stopTimer, timerState.originalDuration]
   );
 
-  /**
-   * 🔥 Ajustar duración
-   */
   const setDuration = useCallback(
     (duration: number) => {
       if (timerState.isRunning) {
@@ -267,9 +222,6 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
     [timerState.isRunning]
   );
 
-  /**
-   * 🔥 Obtener tiempo restante formateado
-   */
   const getFormattedTime = useCallback(() => {
     const totalSeconds = Math.ceil(timerState.timeLeft / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -285,9 +237,6 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
     }
   }, [timerState.timeLeft]);
 
-  /**
-   * 🔥 Obtener progreso (0-100)
-   */
   const getProgress = useCallback(() => {
     if (timerState.originalDuration <= 0) return 0;
     return Math.max(
@@ -296,7 +245,6 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
     );
   }, [timerState.originalDuration, timerState.timeLeft]);
 
-  // Cleanup al desmontar
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
@@ -305,7 +253,6 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
     };
   }, []);
 
-  // Sincronizar con tiempo real cuando la app vuelve del background
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && timerState.isRunning && endTimeRef.current) {
@@ -320,7 +267,6 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
         if (remaining <= 0) {
           finishTimer();
         } else {
-          // Reajustar countdown con el tiempo correcto
           startCountdown(endTimeRef.current);
         }
       }
@@ -335,12 +281,9 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
     };
   }, [timerState.isRunning, finishTimer, startCountdown]);
 
-  // Retornar API del hook
   return {
-    // Estado
     ...timerState,
 
-    // Métodos de control
     start: startTimer,
     pause: pauseTimer,
     resume: resumeTimer,
@@ -348,18 +291,14 @@ export const useTimer = (initialDuration: number = 0, callbacks?: TimerCallbacks
     reset: resetTimer,
     finish: finishTimer,
 
-    // Configuración
     setDuration,
 
-    // Utilidades
     getFormattedTime,
     getProgress,
 
-    // Estado calculado
     isActive: timerState.isRunning || timerState.isPaused,
     hasTimeLeft: timerState.timeLeft > 0,
 
-    // Información adicional
     progressPercentage: getProgress(),
     formattedTime: getFormattedTime(),
   };

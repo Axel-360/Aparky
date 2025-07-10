@@ -8,8 +8,8 @@ export interface NavigationState {
   estimatedArrival: Date | null;
   direction: string;
   nextInstruction?: string;
-  progress: number; // 0-100
-  speed?: number; // metros por segundo
+  progress: number;
+  speed?: number;
   currentLocation?: { latitude: number; longitude: number };
   accuracy?: number;
 }
@@ -17,7 +17,7 @@ export interface NavigationState {
 export interface NavigationOptions {
   enableVoiceGuidance?: boolean;
   updateInterval?: number;
-  arrivalThreshold?: number; // metros para considerar llegada
+  arrivalThreshold?: number;
   enableNotifications?: boolean;
   enableVibration?: boolean;
 }
@@ -42,17 +42,15 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
   const [error, setError] = useState<string | null>(null);
   const [hasArrived, setHasArrived] = useState(false);
 
-  // Referencias para limpiar efectos
   const watchIdRef = useRef<number | null>(null);
   const initialDistanceRef = useRef<number | null>(null);
   const speechSynthesisRef = useRef<SpeechSynthesis | null>(null);
   const lastPositionRef = useRef<{ lat: number; lng: number; timestamp: number } | null>(null);
   const lastNotificationDistanceRef = useRef<number>(Infinity);
-  const consecutiveArrivalsRef = useRef<number>(0); // Para evitar falsas llegadas
+  const consecutiveArrivalsRef = useRef<number>(0);
 
-  // Calcular distancia haversine con mayor precisión
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371e3; // Radio de la Tierra en metros
+    const R = 6371e3;
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
     const Δφ = ((lat2 - lat1) * Math.PI) / 180;
@@ -64,7 +62,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     return R * c;
   }, []);
 
-  // Calcular bearing (dirección) mejorado
   const calculateBearing = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
@@ -77,7 +74,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     return ((θ * 180) / Math.PI + 360) % 360;
   }, []);
 
-  // Convertir bearing a dirección cardinal más precisa
   const getCardinalDirection = useCallback((bearing: number): string => {
     const directions = [
       "Norte",
@@ -100,32 +96,28 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     return directions[Math.round(bearing / 22.5) % 16];
   }, []);
 
-  // Calcular velocidad con filtrado
   const calculateSpeed = useCallback(
     (
       currentPos: { lat: number; lng: number; timestamp: number },
       lastPos: { lat: number; lng: number; timestamp: number }
     ): number => {
       const distance = calculateDistance(currentPos.lat, currentPos.lng, lastPos.lat, lastPos.lng);
-      const timeDiff = (currentPos.timestamp - lastPos.timestamp) / 1000; // segundos
+      const timeDiff = (currentPos.timestamp - lastPos.timestamp) / 1000;
 
-      if (timeDiff === 0 || timeDiff > 30) return 0; // Ignorar cálculos con tiempos muy largos
+      if (timeDiff === 0 || timeDiff > 30) return 0;
 
       const speed = distance / timeDiff;
 
-      // Filtrar velocidades irrealmente altas (más de 15 m/s = 54 km/h caminando)
       return speed > 15 ? 0 : speed;
     },
     [calculateDistance]
   );
 
-  // Texto a voz mejorado
   const speak = useCallback(
     (text: string) => {
       if (!enableVoiceGuidance || !speechSynthesisRef.current) return;
 
       try {
-        // Cancelar habla anterior
         speechSynthesisRef.current.cancel();
 
         const utterance = new SpeechSynthesisUtterance(text);
@@ -142,7 +134,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     [enableVoiceGuidance]
   );
 
-  // Vibrar dispositivo
   const vibrate = useCallback(
     (pattern: number | number[] = 200) => {
       if (!enableVibration || !("vibrate" in navigator)) return;
@@ -155,10 +146,8 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     [enableVibration]
   );
 
-  // Generar instrucción de navegación mejorada
   const generateNavigationInstruction = useCallback(
     (distance: number, direction: string, speed?: number, accuracy?: number): string => {
-      // Considerar precisión del GPS
       const effectiveDistance = accuracy && accuracy > 10 ? Math.max(distance, accuracy) : distance;
 
       if (effectiveDistance <= arrivalThreshold) {
@@ -183,8 +172,7 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
         return `Sigue hacia el ${direction.toLowerCase()} por ${Math.round(effectiveDistance)} metros más.`;
       }
 
-      // Estimar tiempo de llegada más preciso
-      const walkingSpeed = speed && speed > 0.5 && speed < 3 ? speed : 1.39; // 1.39 m/s = 5 km/h
+      const walkingSpeed = speed && speed > 0.5 && speed < 3 ? speed : 1.39;
       const timeEstimate = Math.round(effectiveDistance / walkingSpeed / 60);
 
       return `Dirígete hacia el ${direction.toLowerCase()}. Distancia: ${Math.round(
@@ -194,7 +182,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     [arrivalThreshold]
   );
 
-  // Manejar notificaciones de proximidad
   const handleProximityNotifications = useCallback(
     (distance: number, accuracy?: number) => {
       if (!enableNotifications || Notification.permission !== "granted") return;
@@ -240,7 +227,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     [enableNotifications, vibrate, speak]
   );
 
-  // Actualizar posición y navegación mejorado
   const updatePosition = useCallback(
     (position: GeolocationPosition) => {
       const timestamp = Date.now();
@@ -272,7 +258,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
 
       const direction = getCardinalDirection(bearing);
 
-      // Calcular velocidad si tenemos posición anterior
       let speed: number | undefined;
       if (lastPositionRef.current) {
         speed = calculateSpeed(
@@ -281,14 +266,12 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
         );
       }
 
-      // Guardar posición actual para próximo cálculo
       lastPositionRef.current = {
         lat: newLocation.latitude,
         lng: newLocation.longitude,
         timestamp,
       };
 
-      // Calcular progreso
       if (initialDistanceRef.current === null) {
         initialDistanceRef.current = distance;
       }
@@ -298,12 +281,10 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
         Math.min(100, ((initialDistanceRef.current - distance) / initialDistanceRef.current) * 100)
       );
 
-      // Estimar tiempo de llegada
       const walkingSpeedMs = speed && speed > 0.5 && speed < 3 ? speed : 1.39;
       const estimatedSeconds = distance / walkingSpeedMs;
       const estimatedArrival = new Date(Date.now() + estimatedSeconds * 1000);
 
-      // Generar instrucción
       const nextInstruction = generateNavigationInstruction(distance, direction, speed, newLocation.accuracy);
 
       setNavigationState((prev) => ({
@@ -318,16 +299,13 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
         currentLocation: { latitude: newLocation.latitude, longitude: newLocation.longitude },
       }));
 
-      // Manejar notificaciones de proximidad
       handleProximityNotifications(distance, newLocation.accuracy);
 
-      // Comprobar llegada con lógica mejorada
       const effectiveThreshold =
         newLocation.accuracy && newLocation.accuracy > arrivalThreshold ? newLocation.accuracy * 1.5 : arrivalThreshold;
 
       if (distance <= effectiveThreshold) {
         consecutiveArrivalsRef.current += 1;
-        // Necesitar 2 lecturas consecutivas para confirmar llegada
         if (consecutiveArrivalsRef.current >= 2 && !hasArrived) {
           setHasArrived(true);
           onArrival();
@@ -349,7 +327,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     ]
   );
 
-  // Manejar llegada
   const onArrival = useCallback(() => {
     speak("¡Has llegado a tu destino! Tu coche debería estar muy cerca.");
 
@@ -362,16 +339,13 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
       });
     }
 
-    // Vibración de llegada
     vibrate([500, 200, 500, 200, 500]);
 
-    // Detener navegación automáticamente después de un momento
     setTimeout(() => {
       stopNavigation(true);
     }, 3000);
   }, [speak, enableNotifications, vibrate]);
 
-  // Manejar errores de geolocalización mejorado
   const handleGeolocationError = useCallback(
     (error: GeolocationPositionError) => {
       let errorMessage = "Error desconocido de geolocalización";
@@ -391,11 +365,9 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
       setError(errorMessage);
       console.error("Geolocation error:", error);
 
-      // Para timeout, intentar de nuevo automáticamente
       if (error.code === error.TIMEOUT && navigationState.isNavigating) {
         setTimeout(() => {
           if (navigator.geolocation && navigationState.isNavigating) {
-            // Reintentar con configuración menos estricta
             const fallbackOptions: PositionOptions = {
               enableHighAccuracy: false,
               timeout: 10000,
@@ -410,14 +382,12 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     [navigationState.isNavigating, updatePosition]
   );
 
-  // Inicializar Speech Synthesis
   useEffect(() => {
     if (enableVoiceGuidance && "speechSynthesis" in window) {
       speechSynthesisRef.current = window.speechSynthesis;
     }
   }, [enableVoiceGuidance]);
 
-  // Iniciar navegación
   const startNavigation = useCallback(() => {
     if (!navigator.geolocation) {
       setError("Geolocalización no disponible en este dispositivo");
@@ -431,19 +401,16 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     lastNotificationDistanceRef.current = Infinity;
     consecutiveArrivalsRef.current = 0;
 
-    // Configurar opciones de geolocalización optimizadas
     const watchOptions: PositionOptions = {
       enableHighAccuracy: true,
       timeout: 15000,
       maximumAge: 3000,
     };
 
-    // Obtener posición inicial
     navigator.geolocation.getCurrentPosition(
       (position) => {
         updatePosition(position);
 
-        // Iniciar seguimiento continuo
         const watchId = navigator.geolocation.watchPosition(updatePosition, handleGeolocationError, watchOptions);
 
         watchIdRef.current = watchId;
@@ -455,7 +422,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
 
         speak("Navegación iniciada hacia tu coche");
 
-        // Solicitar permisos de notificación si no están concedidos
         if (enableNotifications && Notification.permission === "default") {
           Notification.requestPermission().then((permission) => {
             if (permission === "granted") {
@@ -473,7 +439,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     );
   }, [updatePosition, handleGeolocationError, speak, enableNotifications]);
 
-  // Detener navegación
   const stopNavigation = useCallback(
     (silent: boolean = false) => {
       const wasNavigating = navigationState.isNavigating;
@@ -496,7 +461,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
       lastNotificationDistanceRef.current = Infinity;
       consecutiveArrivalsRef.current = 0;
 
-      // Solo hablar si realmente estaba navegando y no es un cierre silencioso
       if (wasNavigating && !silent) {
         speak("Navegación detenida");
       }
@@ -504,7 +468,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     [navigationState.isNavigating, speak]
   );
 
-  // Pausar/reanudar navegación
   const toggleNavigation = useCallback(() => {
     if (navigationState.isNavigating) {
       stopNavigation(false);
@@ -513,7 +476,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     }
   }, [navigationState.isNavigating, stopNavigation, startNavigation]);
 
-  // Repetir última instrucción
   const repeatInstruction = useCallback(() => {
     if (hasArrived) {
       speak("Has llegado a tu destino. Tu coche debería estar muy cerca.");
@@ -531,7 +493,6 @@ export const useNavigation = (targetLocation: CarLocation, options: NavigationOp
     }
   }, [hasArrived, navigationState.nextInstruction, navigationState.currentDistance, navigationState.direction, speak]);
 
-  // Limpiar al desmontar
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) {

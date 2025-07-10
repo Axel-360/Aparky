@@ -1,4 +1,4 @@
-// src/components/PWA/InstallBanner.tsx - VERSIÓN SIMPLIFICADA SIN ERRORES
+// src/components/PWA/InstallBanner.tsx
 import React, { useState, useEffect } from "react";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
@@ -17,7 +17,6 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ className, onDismi
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Mostrar banner después de un tiempo para no ser intrusivo
     const timer = setTimeout(() => {
       setIsVisible(true);
     }, 10000); // 10 segundos

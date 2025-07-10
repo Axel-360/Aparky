@@ -1,4 +1,4 @@
-// src/features/location/components/EditLocationDialog/EditLocationDialog.tsx
+// src/features/location/components/EditLocationDialog.tsx
 import React, { useState, useCallback, useRef } from "react";
 import {
   Dialog,
@@ -29,7 +29,6 @@ import { cn } from "@/lib/utils";
 import type { CarLocation } from "@/types/location";
 import "leaflet/dist/leaflet.css";
 
-// Fix para los iconos de Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
@@ -37,7 +36,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-// Icono personalizado para el marcador
 const createCarIcon = (isSelected: boolean = false) => {
   return L.divIcon({
     html: `<div style="
@@ -66,7 +64,6 @@ const createCarIcon = (isSelected: boolean = false) => {
   });
 };
 
-// Componente para manejar clics en el mapa
 const MapClickHandler: React.FC<{
   onMapClick: (lat: number, lng: number) => void;
   isEditingLocation: boolean;
@@ -96,7 +93,6 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
   onSave,
   mapType = "osm",
 }) => {
-  // Estados para el formulario
   const [note, setNote] = useState(location.note || "");
   const [parkingType, setParkingType] = useState(location.parkingType || "Calle");
   const [cost, setCost] = useState(location.cost?.toString() || "");
@@ -105,7 +101,6 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
   const [reminderMinutes, setReminderMinutes] = useState(location.reminderMinutes);
   const [isSaving, setIsSaving] = useState(false);
 
-  // 🚀 NUEVO: Estados para la ubicación
   const [newLatitude, setNewLatitude] = useState(location.latitude);
   const [newLongitude, setNewLongitude] = useState(location.longitude);
   const [newAddress, setNewAddress] = useState<string | undefined>(location.address);
@@ -116,7 +111,6 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
 
   const mapRef = useRef<L.Map | null>(null);
 
-  // Resetear estado cuando cambie la ubicación
   React.useEffect(() => {
     if (location) {
       setNote(location.note || "");
@@ -133,7 +127,6 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
     }
   }, [location]);
 
-  // 🚀 NUEVO: Obtener dirección de coordenadas
   const getAddressFromCoordinates = useCallback(async (lat: number, lng: number) => {
     setIsGettingAddress(true);
     try {
@@ -157,7 +150,6 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
     }
   }, []);
 
-  // 🚀 NUEVO: Manejar clic en el mapa
   const handleMapClick = useCallback(
     (lat: number, lng: number) => {
       setNewLatitude(lat);
@@ -169,7 +161,6 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
     [getAddressFromCoordinates]
   );
 
-  // 🚀 NUEVO: Obtener ubicación actual del usuario
   const getCurrentLocation = useCallback(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -196,7 +187,6 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
     }
   }, [getAddressFromCoordinates]);
 
-  // 🚀 NUEVO: Resetear ubicación a la original
   const resetLocation = useCallback(() => {
     setNewLatitude(location.latitude);
     setNewLongitude(location.longitude);
@@ -219,14 +209,13 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
         reminderMinutes,
       };
 
-      // 🚀 NUEVO: Incluir cambios de ubicación si han cambiado
       const locationChanged = newLatitude !== location.latitude || newLongitude !== location.longitude;
 
       if (locationChanged) {
         updates.latitude = newLatitude;
         updates.longitude = newLongitude;
         updates.address = newAddress;
-        updates.isManualPlacement = true; // Marcar como editada manualmente
+        updates.isManualPlacement = true;
       }
 
       await onSave(updates);
@@ -312,7 +301,6 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
   const locationTypeInfo = getLocationTypeInfo();
   const locationChanged = newLatitude !== location.latitude || newLongitude !== location.longitude;
 
-  // Configuración del mapa
   const getMapConfig = (mapType: string) => {
     switch (mapType) {
       case "satellite":
@@ -440,10 +428,10 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                 </div>
               </div>
 
-              {/* Costo */}
+              {/* Coste */}
               <div className="space-y-2">
                 <Label htmlFor="edit-cost" className="text-sm font-medium">
-                  Costo (opcional)
+                  Coste (opcional)
                 </Label>
                 <div className="relative">
                   <Input
@@ -490,7 +478,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
           </TabsContent>
 
           <TabsContent value="location" className="space-y-6 mt-6">
-            {/* 🚀 NUEVA PESTAÑA: Editor de ubicación */}
+            {/* NUEVA PESTAÑA: Editor de ubicación */}
             <div className="space-y-4">
               {/* Controles de ubicación */}
               <div className="flex flex-wrap items-center gap-2">

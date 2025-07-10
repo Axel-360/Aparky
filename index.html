@@ -10,17 +10,17 @@
   <meta name="description"
     content="Guarda y encuentra fácilmente dónde aparcaste tu vehículo con GPS, temporizadores y navegación paso a paso" />
 
-  <!-- 🔥 CRÍTICO para iOS: Configuración específica -->
+  <!-- iOS: Configuración específica -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Aparky" />
 
-  <!-- 🔥 NUEVO: Meta tags para mejor soporte de notificaciones -->
+  <!-- Meta tags para mejor soporte de notificaciones -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="application-name" content="Aparky" />
   <meta name="apple-touch-fullscreen" content="yes" />
 
-  <!-- 🔥 CRÍTICO: Evitar que iOS pause la PWA -->
+  <!-- Evitar que iOS pause la PWA -->
   <meta name="format-detection" content="telephone=no" />
   <meta name="format-detection" content="date=no" />
   <meta name="format-detection" content="address=no" />
@@ -47,14 +47,14 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/pwa-192x192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="/icons/pwa-512x512.png" />
 
-  <!-- 🔥 NUEVO: Splash screen para iOS -->
+  <!-- Splash screen para iOS -->
   <link rel="apple-touch-startup-image" href="/icons/pwa-512x512.png" />
 
   <!-- Microsoft Tiles -->
   <meta name="msapplication-TileColor" content="#2563eb" />
   <meta name="msapplication-TileImage" content="/icons/pwa-192x192.png" />
 
-  <!-- 🔥 MEJORADO: Color schemes -->
+  <!-- Color schemes -->
   <meta name="theme-color" content="#2563eb" />
   <meta name="background-color" content="#ffffff" />
   <meta name="msapplication-navbutton-color" content="#2563eb" />
@@ -69,7 +69,7 @@
 
   <title>Aparky</title>
 
-  <!-- 🔥 CRÍTICO: Script para mantener la app activa en iOS -->
+  <!-- Script para mantener la app activa en iOS -->
   <script>
     // Prevenir que iOS pause la PWA
     if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
@@ -92,7 +92,7 @@
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 
-  <!-- 🔥 NUEVO: Script adicional para registro del SW -->
+  <!-- Script adicional para registro del SW -->
   <script>
     // Registrar Service Worker lo antes posible
     if ('serviceWorker' in navigator) {

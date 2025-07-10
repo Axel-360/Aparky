@@ -1,4 +1,4 @@
-// src/hooks/usePWA.ts - Versión simplificada para empezar
+// src/hooks/usePWA.ts
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
@@ -23,19 +23,16 @@ export const usePWA = (): PWAState & PWAActions => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
-    // Detectar si ya está instalado
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
     const isInWebAppiOS = (window.navigator as any).standalone === true;
     setIsInstalled(isStandalone || isInWebAppiOS);
 
-    // Listener para el evento de instalación
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setIsInstallable(true);
     };
 
-    // Listener para cuando se instala la app
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setIsInstallable(false);
@@ -43,7 +40,6 @@ export const usePWA = (): PWAState & PWAActions => {
       toast.success("¡App instalada correctamente! 🎉");
     };
 
-    // Listeners para estado de conexión
     const handleOnline = () => {
       setIsOffline(false);
       toast.success("Conexión restaurada");
@@ -111,7 +107,6 @@ export const usePWA = (): PWAState & PWAActions => {
   };
 };
 
-// Hook simplificado para usar en InstallBanner
 export const useInstallPrompt = () => {
   const [canInstall, setCanInstall] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);

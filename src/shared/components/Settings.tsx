@@ -1,10 +1,9 @@
-// src/shared/components/Settings/Settings.tsx - ACTUALIZADO CON UBICACIÓN PREFERIDA
+// src/shared/components/Settings.tsx
 import React, { useState } from "react";
 import type { UserPreferences } from "@/types/location";
 import { getUserPreferences, saveUserPreferences } from "@/utils/preferences";
 import { useTheme } from "@/shared/ui/theme-provider";
-import { ConfirmationDialog, ResetConfirmationDialog } from "@/shared/components/ConfirmationDialog/ConfirmationDialog";
-// 🚀 NUEVO: Importar componentes de ubicación
+import { ConfirmationDialog, ResetConfirmationDialog } from "@/shared/components/ConfirmationDialog";
 import { LocationManager, LocationPreferenceSettings } from "@/utils/locationDefaults";
 import {
   Sheet,
@@ -54,8 +53,8 @@ import {
   MapPin,
   Clock,
   Image,
-  Navigation, // 🚀 NUEVO: Para ubicación
-  Target, // 🚀 NUEVO: Para ubicación
+  Navigation,
+  Target,
 } from "lucide-react";
 
 interface SettingsProps {
@@ -70,7 +69,6 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
   const [isImporting, setIsImporting] = useState(false);
   const { setTheme } = useTheme();
 
-  // Estados para los dialogs de confirmación
   const [resetDialog, setResetDialog] = useState({
     isOpen: false,
     isResetting: false,
@@ -99,11 +97,9 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
     }
   };
 
-  // 🚀 NUEVO: Handler para cuando se establece una ubicación preferida
   const handleLocationPreferenceSet = (lat: number, lng: number, name: string) => {
     toast.success(`Ubicación preferida establecida: ${name}`);
     toast.info(`Coordenadas: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-    // La ubicación se guarda automáticamente en LocationPreferenceSettings
   };
 
   const exportData = async () => {
@@ -111,7 +107,6 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
     try {
       const locations = localStorage.getItem("car-locations");
       const preferences = localStorage.getItem("user-preferences");
-      // 🚀 NUEVO: Incluir datos de ubicación en la exportación
       const locationPrefs = localStorage.getItem("user-preferred-default-location");
       const lastKnownLocation = localStorage.getItem("user-last-known-location");
 
@@ -123,10 +118,10 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
       const exportData = {
         locations: JSON.parse(locations),
         preferences: preferences ? JSON.parse(preferences) : {},
-        locationPreferences: locationPrefs ? JSON.parse(locationPrefs) : null, // 🚀 NUEVO
-        lastKnownLocation: lastKnownLocation ? JSON.parse(lastKnownLocation) : null, // 🚀 NUEVO
+        locationPreferences: locationPrefs ? JSON.parse(locationPrefs) : null,
+        lastKnownLocation: lastKnownLocation ? JSON.parse(lastKnownLocation) : null,
         exportDate: new Date().toISOString(),
-        version: "2.0", // 🚀 CAMBIO: Incrementar versión
+        version: "2.0",
       };
 
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
@@ -178,7 +173,6 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
         }
       }
 
-      // 🚀 NUEVO: Importar preferencias de ubicación
       if (data.locationPreferences) {
         localStorage.setItem("user-preferred-default-location", JSON.stringify(data.locationPreferences));
       }
@@ -221,7 +215,6 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
       setDeleteAllDialog((prev) => ({ ...prev, isDeleting: true }));
       await new Promise((resolve) => setTimeout(resolve, 1000));
       localStorage.removeItem("car-locations");
-      // 🚀 NUEVO: También limpiar datos de ubicación
       localStorage.removeItem("user-last-known-location");
       localStorage.removeItem("user-preferred-default-location");
 
@@ -250,7 +243,6 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       localStorage.removeItem("user-preferences");
-      // 🚀 NUEVO: También resetear preferencias de ubicación
       localStorage.removeItem("user-preferred-default-location");
 
       const defaultPrefs = getUserPreferences();
@@ -313,7 +305,6 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
     };
   };
 
-  // 🚀 NUEVO: Obtener información de ubicación
   const getLocationInfo = () => {
     const preferredLocation = LocationManager.getUserPreferredLocation();
     const lastKnownLocation = LocationManager.getLastKnownLocation();
@@ -328,7 +319,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
 
   const stats = getDataStats();
   const storageDetails = getStorageDetails();
-  const locationInfo = getLocationInfo(); // 🚀 NUEVO
+  const locationInfo = getLocationInfo();
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -342,7 +333,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-          {/* 🚀 NUEVA SECCIÓN: Ubicación */}
+          {/* Ubicación */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -736,7 +727,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
               <Camera className="w-3 h-3" />
               Máx. fotos: {preferences.maxPhotos} → 3
             </div>
-            {/* 🚀 NUEVO: Mostrar que también se resetearán las preferencias de ubicación */}
+            {/* Mostrar que también se resetearán las preferencias de ubicación */}
             <div className="flex items-center gap-2">
               <Navigation className="w-3 h-3" />
               Ubicación preferida: {locationInfo.preferredLocation?.name || "ninguna"} → ninguna
@@ -789,7 +780,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
               <Badge variant="destructive">{storageDetails.photos}</Badge>
             </div>
 
-            {/* 🚀 NUEVO: Mostrar datos de ubicación que se eliminarán */}
+            {/* Mostrar datos de ubicación que se eliminarán */}
             <div className="flex items-center justify-between p-2 bg-white/50 dark:bg-black/20 rounded">
               <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
                 <Navigation className="w-4 h-4" />

@@ -1,4 +1,4 @@
-// src/features/navigation/components/LocationPermissions/LocationPermissions.tsx
+// src/features/navigation/components/LocationPermissions.tsx
 import React, { useState, useEffect } from "react";
 import {
   Button,
@@ -26,7 +26,6 @@ const LocationPermissions: React.FC<LocationPermissionsProps> = ({ onPermissionG
   const [browserInfo, setBrowserInfo] = useState<string>("");
 
   useEffect(() => {
-    // Detectar navegador para instrucciones específicas
     const userAgent = navigator.userAgent;
     if (userAgent.includes("Chrome")) setBrowserInfo("Chrome");
     else if (userAgent.includes("Firefox")) setBrowserInfo("Firefox");
@@ -44,7 +43,6 @@ const LocationPermissions: React.FC<LocationPermissionsProps> = ({ onPermissionG
     }
 
     try {
-      // Verificar permisos usando la API de permisos si está disponible
       if ("permissions" in navigator) {
         const permission = await navigator.permissions.query({ name: "geolocation" });
         setPermissionStatus(permission.state as PermissionStatus);
@@ -55,7 +53,6 @@ const LocationPermissions: React.FC<LocationPermissionsProps> = ({ onPermissionG
           onPermissionDenied();
         }
       } else {
-        // Fallback para navegadores sin API de permisos
         setPermissionStatus("prompt");
       }
     } catch (error) {
@@ -82,7 +79,6 @@ const LocationPermissions: React.FC<LocationPermissionsProps> = ({ onPermissionG
       console.error("Permission denied:", error);
 
       if (error.code === 1) {
-        // PERMISSION_DENIED
         setPermissionStatus("denied");
         onPermissionDenied();
       } else {
@@ -197,7 +193,6 @@ const LocationPermissions: React.FC<LocationPermissionsProps> = ({ onPermissionG
     );
   }
 
-  // Estado "prompt" - necesita solicitar permisos
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>

@@ -1,4 +1,4 @@
-//src/features/location/components/LocationSaver/LocationSaver.tsx
+//src/features/location/components/LocationSaver.tsx
 import React, { useState, useEffect } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Alert, AlertDescription, Badge } from "@/shared/ui";
 import { toast } from "sonner";
@@ -47,11 +47,9 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
 }) => {
   const { latitude, longitude, accuracy, error, loading, getCurrentPosition } = useGeolocation();
 
-  // Estados básicos
   const [saving, setSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // 🚀 CAMBIO 1: Estados para auto-save inteligente (persistente + detección de movimiento)
   const [lastAutoSave, setLastAutoSave] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("car-location-last-autosave");
@@ -61,7 +59,6 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     }
   });
 
-  // 🚀 NUEVO: Guardar última ubicación guardada para detectar movimiento
   const [lastSavedLocation, setLastSavedLocation] = useState<[number, number] | null>(() => {
     try {
       const saved = localStorage.getItem("car-location-last-coordinates");
@@ -71,7 +68,6 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     }
   });
 
-  // Estados de forma inteligente
   const [smartFormMode, setSmartFormMode] = useState<"simple" | "detailed">("simple");
   const [note, setNote] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
@@ -80,17 +76,14 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
   const [expiryTime, setExpiryTime] = useState<number | undefined>();
   const [reminderMinutes, setReminderMinutes] = useState<number | undefined>(defaultReminderMinutes);
 
-  // Estados para ubicación manual
   const [manualLocation, setManualLocation] = useState<[number, number] | null>(null);
   const [showManualMode, setShowManualMode] = useState(false);
   const [address, setAddress] = useState<string>("");
   const [isGettingAddress, setIsGettingAddress] = useState(false);
 
-  // Estados de animación y feedback
   const [justSaved, setJustSaved] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
 
-  // Detectar conexión
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -104,27 +97,23 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     };
   }, []);
 
-  // 🚀 NUEVO: Efecto para obtener GPS al cargar
   useEffect(() => {
-    // Auto-obtener GPS cuando el componente se monta y no estamos en modo manual
     if (!showManualMode && !latitude && !longitude && !loading && !error) {
       const timer = setTimeout(() => {
         getCurrentPosition();
-      }, 1000); // Delay de 1 segundo para dar tiempo a que se monte el componente
+      }, 1000);
 
       return () => clearTimeout(timer);
     }
   }, [showManualMode, latitude, longitude, loading, error, getCurrentPosition]);
 
-  // 🚀 CAMBIO 2: Auto-save inteligente con detección de movimiento
   useEffect(() => {
     const now = Date.now();
-    const COOLDOWN = 5 * 60 * 1000; // 5 minutos entre auto-saves
-    const MIN_DISTANCE = 50; // Metros mínimos de movimiento para auto-save
+    const COOLDOWN = 5 * 60 * 1000;
+    const MIN_DISTANCE = 50;
 
-    // Función para calcular distancia entre dos puntos (fórmula de Haversine)
     const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-      const R = 6371e3; // Radio de la Tierra en metros
+      const R = 6371e3;
       const φ1 = (lat1 * Math.PI) / 180;
       const φ2 = (lat2 * Math.PI) / 180;
       const Δφ = ((lat2 - lat1) * Math.PI) / 180;
@@ -133,20 +122,17 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
       const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-      return R * c; // Distancia en metros
+      return R * c;
     };
 
     if (autoSave && latitude && longitude && !saving && isOnline && now - lastAutoSave > COOLDOWN) {
-      // 🚀 NUEVO: Verificar si realmente se ha movido
       let shouldAutoSave = true;
 
       if (lastSavedLocation) {
         const distance = calculateDistance(lastSavedLocation[0], lastSavedLocation[1], latitude, longitude);
 
-        // Solo auto-guardar si se ha movido más de la distancia mínima
         shouldAutoSave = distance >= MIN_DISTANCE;
 
-        // Debug en desarrollo
         if (process.env.NODE_ENV === "development") {
           console.log(
             `🎯 Auto-save: Distancia desde último guardado: ${Math.round(distance)}m (mín: ${MIN_DISTANCE}m)`
@@ -163,7 +149,6 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
           setLastAutoSave(saveTime);
           setLastSavedLocation(currentCoords);
 
-          // Persistir en localStorage para sobrevivir recargas
           try {
             localStorage.setItem("car-location-last-autosave", saveTime.toString());
             localStorage.setItem("car-location-last-coordinates", JSON.stringify(currentCoords));
@@ -176,7 +161,6 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     }
   }, [latitude, longitude, autoSave, saving, isOnline, lastAutoSave, lastSavedLocation]);
 
-  // Obtener dirección automáticamente
   useEffect(() => {
     const location = manualLocation || (latitude && longitude ? [latitude, longitude] : null);
     if (location && isOnline) {
@@ -189,7 +173,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
 
     setIsGettingAddress(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300)); // Debounce
+      await new Promise((resolve) => setTimeout(resolve, 300));
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
         { headers: { "User-Agent": "CarLocationApp/1.0" } }
@@ -225,7 +209,6 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     setSaveProgress(0);
 
     try {
-      // Animación de progreso
       const progressInterval = setInterval(() => {
         setSaveProgress((prev) => Math.min(prev + 20, 90));
       }, 100);
@@ -246,29 +229,25 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
         accuracy: accuracy || undefined,
       };
 
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simular procesamiento
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       clearInterval(progressInterval);
       setSaveProgress(100);
 
       onLocationSaved(newLocation);
 
-      // Feedback visual exitoso
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 3000);
 
-      // Limpiar formulario inteligentemente
       if (!isAutoSave) {
         if (smartFormMode === "simple") {
-          // En modo simple, limpiar todo excepto tipo de parking (recordar preferencia)
           setNote("");
           setPhotos([]);
           setCost("");
           setExpiryTime(undefined);
         } else {
-          // En modo detallado, mantener algunas preferencias
           if (!note.includes("Nivel") && !note.includes("Plaza")) {
-            setNote(""); // Solo limpiar si no parece info específica del lugar
+            setNote("");
           }
         }
         setManualLocation(null);
@@ -318,7 +297,6 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     setSmartFormMode(smartFormMode === "simple" ? "detailed" : "simple");
   };
 
-  // Quick actions para tipos de parking comunes
   const quickParkingActions = [
     { type: "Calle" as const, icon: "🛣️", color: "bg-blue-100 hover:bg-blue-200 text-blue-800" },
     { type: "Garaje" as const, icon: "🏢", color: "bg-gray-100 hover:bg-gray-200 text-gray-800" },
@@ -326,7 +304,6 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     { type: "Otro" as const, icon: "📍", color: "bg-purple-100 hover:bg-purple-200 text-purple-800" },
   ];
 
-  // Determinar el estado de la ubicación
   const getLocationStatus = () => {
     if (showManualMode) {
       return manualLocation
@@ -362,22 +339,16 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
 
   const locationStatus = getLocationStatus();
 
-  // 🚀 CORREGIDO: Mejorar lógica para habilitar el botón guardar
   const canSave = React.useMemo(() => {
-    // No permitir guardar si ya está guardando
     if (saving) return false;
 
-    // No permitir guardar sin conexión (para obtener dirección)
     if (!isOnline) return false;
 
-    // En modo manual, necesita ubicación marcada
     if (showManualMode) {
       return manualLocation !== null;
     }
 
-    // En modo GPS, necesita coordenadas válidas
     if (latitude && longitude) {
-      // Verificar que las coordenadas sean válidas
       return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
     }
 
@@ -490,7 +461,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
                 </Button>
               )}
 
-              {/* 🚀 NUEVO: Botón de forzar GPS */}
+              {/* Botón de forzar GPS */}
               {!showManualMode && (
                 <Button
                   variant="outline"
@@ -522,9 +493,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
               showControls={true}
               showLocationButton={true}
               onCenterChange={(_center: [number, number], _zoom: number) => {
-                // 🚀 NUEVO: Cuando el mapa se centra, forzar actualización del GPS
                 if (!showManualMode && !manualLocation) {
-                  // Si estamos en modo GPS y el mapa se centra, obtener ubicación actual
                   getCurrentPosition();
                 }
               }}
@@ -549,7 +518,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
           )}
         </div>
 
-        {/* 🚀 CAMBIO 3: Debug de auto-save inteligente con detección de movimiento */}
+        {/* Debug de auto-save inteligente con detección de movimiento */}
         {process.env.NODE_ENV === "development" && autoSave && (
           <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded space-y-1">
             <div>

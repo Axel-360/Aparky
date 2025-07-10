@@ -15,16 +15,11 @@ export const calculateLocationStats = (locations: CarLocation[]): LocationStats 
     };
   }
 
-  // Conteo por hora
   const hourCounts: { [hour: number]: number } = {};
-  // Conteo por día de la semana
   const weeklyCount = [0, 0, 0, 0, 0, 0, 0];
-  // Áreas más comunes (primeras 2 palabras de la dirección)
   const areaCounts: { [area: string]: number } = {};
-  // Conteo por tipo de parking
   const parkingTypeCounts: { [type: string]: number } = {};
 
-  // Variables para costos
   let totalCost = 0;
   let locationsWithCost = 0;
 
@@ -33,13 +28,10 @@ export const calculateLocationStats = (locations: CarLocation[]): LocationStats 
     const hour = date.getHours();
     const dayOfWeek = date.getDay();
 
-    // Contar horas
     hourCounts[hour] = (hourCounts[hour] || 0) + 1;
 
-    // Contar días de la semana
     weeklyCount[dayOfWeek]++;
 
-    // Extraer área común de la dirección
     if (location.address) {
       const addressParts = location.address.split(",");
       if (addressParts.length > 0) {
@@ -48,35 +40,29 @@ export const calculateLocationStats = (locations: CarLocation[]): LocationStats 
       }
     }
 
-    // Contar tipos de parking
     const parkingType = location.parkingType || "Calle";
     parkingTypeCounts[parkingType] = (parkingTypeCounts[parkingType] || 0) + 1;
 
-    // Sumar costos
     if (location.cost && location.cost > 0) {
       totalCost += location.cost;
       locationsWithCost++;
     }
   });
 
-  // Encontrar la hora más usada
   const mostUsedHour = Object.entries(hourCounts).reduce((a, b) =>
     hourCounts[parseInt(a[0])] > hourCounts[parseInt(b[0])] ? a : b
   )[0];
 
-  // Encontrar el área más común
   const mostCommonArea = Object.entries(areaCounts).reduce(
     (a, b) => (areaCounts[a[0]] > areaCounts[b[0]] ? a : b),
     ["", 0]
   )[0];
 
-  // Encontrar el tipo de parking más usado
   const mostUsedParkingType = Object.entries(parkingTypeCounts).reduce(
     (a, b) => (parkingTypeCounts[a[0]] > parkingTypeCounts[b[0]] ? a : b),
     ["Calle", 0]
   )[0];
 
-  // Calcular promedio de costo
   const averageCost = locationsWithCost > 0 ? totalCost / locationsWithCost : 0;
 
   return {

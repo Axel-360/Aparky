@@ -1,4 +1,4 @@
-// src/App.tsx - VERSIÓN COMPLETA MODIFICADA: Sin notificaciones push, manteniendo UI
+// src/App.tsx
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Toaster } from "@/shared/ui/sonner";
 import { ThemeProvider } from "@/shared/ui/theme-provider";
@@ -6,8 +6,8 @@ import { Alert, AlertDescription, Button } from "@/shared/ui";
 import { AlertTriangle, X } from "lucide-react";
 import { useUIState } from "@/hooks/useUIState";
 import { useAppData } from "@/hooks/useAppData";
-import { ErrorBoundary } from "@/shared/components/ErrorBoundary/ErrorBoundary";
-import { MainLayout } from "@/shared/components/Layout/Layout";
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
+import { MainLayout } from "@/shared/components/Layout";
 
 // Componentes PWA
 import { InstallBanner } from "@/components/PWA/InstallBanner";
@@ -17,15 +17,14 @@ import { usePWA } from "@/hooks/usePWA";
 
 // Componentes principales
 import LocationSaver from "./features/location/components/LocationSaver";
-import TimerDashboard from "./features/parking/components/TimerDashboard/TimerDashboard";
+import TimerDashboard from "./features/parking/components/TimerDashboard";
 import { UnifiedMap } from "./features/location/components/UnifiedMap";
 import SavedLocations from "./features/location/components/SavedLocations";
 import ProximitySearch from "./features/location/components/ProximitySearch";
-import Settings from "./shared/components/Settings/Settings";
-import Stats from "./shared/components/Stats/Stats";
-import Navigation from "./features/navigation/components/Navigation/Navigation";
-import LocationPermissions from "./features/navigation/components/LocationPermissions/LocationPermissions";
-// ELIMINADO: import { NotificationSetup } from "@/components/notifications/NotificationSetup";
+import Settings from "./shared/components/Settings";
+import Stats from "./shared/components/Stats";
+import Navigation from "./features/navigation/components/Navigation";
+import LocationPermissions from "./features/navigation/components/LocationPermissions";
 
 // Contexto y hooks
 import { AppProvider } from "./contexts/AppContext";
@@ -38,28 +37,24 @@ import { timerManager } from "./utils/timerManager";
 import { useSmartLocation } from "./utils/locationDefaults";
 import { toast } from "sonner";
 
-// 🔥 DECLARACIÓN GLOBAL SIMPLIFICADA (sin notificaciones)
 declare global {
   interface Window {
     timerManager?: typeof timerManager;
-    testTimerSystem?: () => Promise<void>; // Solo test de timers
+    testTimerSystem?: () => Promise<void>;
   }
 }
 
-// 🆕 CONFIGURAR CALLBACKS PARA MOSTRAR NOTIFICACIONES EN UI
 const setupTimerCallbacks = () => {
-  // Callback para cuando expira un parking
   timerManager.onTimerExpiration((locationId: string, locationNote: string) => {
     console.log(`🚨 Timer expirado - ejecutando callback UI: ${locationNote}`);
 
     toast.error(`🚨 Parking expirado: ${locationNote}`, {
-      duration: 15000, // 15 segundos para que se vea bien
+      duration: 15000,
       position: "top-center",
       action: {
         label: "Ver ubicación",
         onClick: () => {
           console.log("Navegando a ubicación expirada:", locationId);
-          // Aquí puedes añadir lógica para navegar al mapa o mostrar la ubicación
         },
       },
       style: {
@@ -70,18 +65,16 @@ const setupTimerCallbacks = () => {
     });
   });
 
-  // Callback para recordatorios
   timerManager.onTimerReminder((locationId: string, locationNote: string, minutesLeft: number) => {
     console.log(`⏰ Recordatorio - ejecutando callback UI: ${locationNote}, ${minutesLeft} minutos`);
 
     toast.warning(`⏰ Recordatorio: ${locationNote} expira en ${minutesLeft} minutos`, {
-      duration: 10000, // 10 segundos
+      duration: 10000,
       position: "top-center",
       action: {
         label: "Extender",
         onClick: () => {
           console.log("Extendiendo timer:", locationId);
-          // Aquí puedes añadir lógica para extender el timer
         },
       },
       style: {
@@ -95,7 +88,6 @@ const setupTimerCallbacks = () => {
   console.log("✅ Callbacks de timer configurados para mostrar en UI");
 };
 
-// 🔥 EXPOSICIÓN GLOBAL SEGURA (solo timerManager)
 if (typeof window !== "undefined") {
   try {
     window.timerManager = timerManager;
@@ -106,7 +98,6 @@ if (typeof window !== "undefined") {
 }
 
 function AppContent() {
-  // 🔥 Hook consolidado de UI (FUNCIONA BIEN)
   const {
     currentView,
     showSettings,
@@ -129,49 +120,37 @@ function AppContent() {
     handleGlobalErrorDismiss,
   } = useUIState();
 
-  // 🚨 VERIFICACIONES DE SEGURIDAD AL INICIO
   const [isInitialized, setIsInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
-  // Estado de ubicación actual (único estado que queda aquí)
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  // PWA hooks
   const { isOffline, hasUpdate, updateApp, dismissUpdate } = usePWA();
 
-  // 🔥 VERIFICACIONES SEGURAS DE DEPENDENCIAS
   const { initialLocation, isLoading: locationLoading, updateLastKnownLocation } = useSmartLocation();
 
-  // Hook de geolocalización con manejo seguro
   const geoHook = useGeolocation();
   const { latitude, longitude, loading: isGeoLoading, getCurrentPosition: getCurrentLocation } = geoHook;
 
-  // 🔥 Hook consolidado de datos (CORREGIDO)
   const {
-    // Estados
     locations,
     preferences,
     selectedLocationId,
     mapCenter,
     mapZoom,
-    // Handlers principales
     handleLocationSaved,
     handleLocationUpdate,
     handleLocationDeleted,
     handleLocationSelected,
-    // Handlers de timers
     handleTimerExtend,
     handleTimerCancel,
-    // Handlers de mapa
     handleMapLocationClick,
     handleMapCenterChange,
-    // Handlers de preferencias
     handlePreferencesChange,
     updateSortPreference,
     updateShowAllPreference,
   } = useAppData(currentLocation, updateLastKnownLocation);
 
-  // Crear currentLocation a partir de latitude/longitude
   const geoCurrentLocation = useMemo(() => {
     if (latitude !== null && longitude !== null) {
       return { latitude, longitude };
@@ -179,7 +158,6 @@ function AppContent() {
     return null;
   }, [latitude, longitude]);
 
-  // Función para verificar permisos de geolocalización
   const checkLocationPermissions = useCallback(() => {
     try {
       if ("geolocation" in navigator) {
@@ -197,10 +175,8 @@ function AppContent() {
     }
   }, []);
 
-  // Referencias para scroll
   const mapSectionRef = useRef<HTMLDivElement>(null);
 
-  // 🚨 VERIFICACIÓN DE DEPENDENCIAS CRÍTICAS (sin notificaciones)
   useEffect(() => {
     const verifyDependencies = async () => {
       try {
@@ -225,7 +201,6 @@ function AppContent() {
     verifyDependencies();
   }, []);
 
-  // 🔥 LISTENER PARA NOTIFICACIONES DE RESPALDO (simplificado)
   useEffect(() => {
     if (!isInitialized) return;
 
@@ -263,7 +238,6 @@ function AppContent() {
     };
   }, [isInitialized]);
 
-  // Sincronizar ubicación actual con el hook de geolocalización
   useEffect(() => {
     if (!isInitialized) return;
 
@@ -277,7 +251,6 @@ function AppContent() {
     }
   }, [geoCurrentLocation, updateLastKnownLocation, isInitialized]);
 
-  // Handler de navegación (usa startNavigation del hook UI)
   const handleNavigateToLocation = useCallback(
     async (location: CarLocation) => {
       try {
@@ -295,13 +268,11 @@ function AppContent() {
     [currentLocation, getCurrentLocation, startNavigation, setGlobalError]
   );
 
-  // ✅ Handler con toast para permisos denegados
   const handlePermissionDeniedWithToast = useCallback(() => {
     handlePermissionDenied();
     toast.error("Se necesitan permisos de ubicación para la navegación");
   }, [handlePermissionDenied]);
 
-  // Handler para mostrar en mapa con referencia
   const handleShowOnMapWithRef = useCallback(
     (locations: CarLocation[]) => {
       if (locations.length > 0) {
@@ -315,7 +286,6 @@ function AppContent() {
     [handleLocationSelected]
   );
 
-  // Props memoizados
   const headerProps = useMemo(
     () => ({
       currentView,
@@ -381,7 +351,6 @@ function AppContent() {
     ]
   );
 
-  // Contenido del sidebar
   const sidebarContent = useMemo(
     () => (
       <>
@@ -392,7 +361,6 @@ function AppContent() {
     [locationSaverProps, timerDashboardProps]
   );
 
-  // Contenido principal
   const mainContent = useMemo(
     () => (
       <>
@@ -441,11 +409,10 @@ function AppContent() {
     ]
   );
 
-  // 🚨 INICIALIZACIÓN PRINCIPAL CON MANEJO DE ERRORES MEJORADO (sin notificaciones)
   useEffect(() => {
     if (!isInitialized) return;
 
-    let hasRun = false; // 🔥 AÑADIDO: Prevenir múltiples ejecuciones
+    let hasRun = false;
 
     const initializeApp = async () => {
       if (hasRun) {
@@ -453,28 +420,22 @@ function AppContent() {
         return;
       }
 
-      hasRun = true; // 🔥 MARCAR COMO EJECUTADO
+      hasRun = true;
 
       try {
         console.log("🚀 Iniciando aplicación (sin notificaciones push)...");
-
-        // 1. Inicializar tema
         try {
           initializeTheme();
           console.log("✅ Tema inicializado");
         } catch (themeError) {
           console.error("❌ Error inicializando tema:", themeError);
         }
-
-        // 🆕 CONFIGURAR CALLBACKS DEL TIMER PARA UI
         try {
           setupTimerCallbacks();
           console.log("✅ Callbacks de timer configurados");
         } catch (callbackError) {
           console.error("❌ Error configurando callbacks:", callbackError);
         }
-
-        // 2. Sincronizar timers con ubicaciones del hook
         try {
           if (locations.length > 0) {
             console.log("⏰ Sincronizando timers...");
@@ -483,8 +444,6 @@ function AppContent() {
           }
         } catch (timerError) {
           console.error("❌ Error sincronizando timers:", timerError);
-
-          // Fallback seguro
           try {
             console.log("🔄 Intentando sincronización individual segura...");
             const activeLocations = locations.filter(
@@ -503,8 +462,6 @@ function AppContent() {
             console.error("❌ Error en fallback de timers:", fallbackError);
           }
         }
-
-        // 3. Obtener ubicación actual
         try {
           if (getCurrentLocation) {
             getCurrentLocation();
@@ -514,8 +471,6 @@ function AppContent() {
         } catch (geoError) {
           console.error("❌ Error con geolocalización:", geoError);
         }
-
-        // 4. Configurar listeners móviles (simplificado)
         try {
           setupMobileEventListeners();
           console.log("📱 Event listeners configurados");
@@ -557,13 +512,7 @@ function AppContent() {
           }
         };
 
-        // ELIMINADO: listeners de notificaciones
-        // const handleNotificationClick = (event: any) => { ... }
-        // const handleNotificationFailed = (event: any) => { ... }
-
         window.addEventListener("focus", handleFocus);
-        // ELIMINADO: window.addEventListener("notificationClick", handleNotificationClick);
-        // ELIMINADO: window.addEventListener("notificationFailed", handleNotificationFailed);
 
         console.log("📱 Event listeners móviles configurados");
       } catch (error) {
@@ -580,7 +529,6 @@ function AppContent() {
       }
     };
 
-    // Inicializar con manejo de errores extra
     try {
       initializeApp().catch((asyncError) => {
         console.error("❌ Error en función async de inicialización:", asyncError);
@@ -592,9 +540,8 @@ function AppContent() {
     }
 
     return cleanup;
-  }, [isInitialized]); // 🔥 SIMPLIFICADO: Solo depende de isInitialized
+  }, [isInitialized]);
 
-  // useEffect para debug en desarrollo
   useEffect(() => {
     if (!isInitialized) return;
 
@@ -609,17 +556,14 @@ function AppContent() {
     }
   }, [isInitialized, locations.length]);
 
-  // Actualizar mapa cuando cambie initialLocation
   useEffect(() => {
     if (!isInitialized) return;
 
     if (initialLocation && !locationLoading) {
-      // El mapa se actualiza a través del hook useAppData
       console.log("📍 Ubicación inicial disponible:", initialLocation);
     }
   }, [initialLocation, locationLoading, isInitialized]);
 
-  // Si hay error de inicialización, mostrar error temprano
   if (initError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-red-50">
@@ -637,7 +581,6 @@ function AppContent() {
     );
   }
 
-  // Si no está inicializado, mostrar loading
   if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -742,7 +685,6 @@ function App() {
   );
 }
 
-// 🔥 FUNCIÓN DE TEST GLOBAL SEGURA (solo timers)
 if (typeof window !== "undefined") {
   window.testTimerSystem = async () => {
     try {

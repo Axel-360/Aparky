@@ -5,7 +5,6 @@ class TimerManager {
   private static instance: TimerManager;
   private activeTimers: Map<string, number[]> = new Map();
 
-  // Control de estado de timers para evitar duplicados
   private timerStates: Map<
     string,
     {
@@ -18,11 +17,9 @@ class TimerManager {
     }
   > = new Map();
 
-  // 🆕 CALLBACKS para manejar eventos de timer en la UI
   private onTimerExpirationCallbacks: Array<(locationId: string, locationNote: string) => void> = [];
   private onTimerReminderCallbacks: Array<(locationId: string, locationNote: string, minutesLeft: number) => void> = [];
 
-  // Persistencia para recuperación después de cierre
   private readonly STORAGE_KEY = "active_timers_backup";
 
   private constructor() {
@@ -37,7 +34,6 @@ class TimerManager {
     return TimerManager.instance;
   }
 
-  // 🆕 MÉTODOS PARA REGISTRAR CALLBACKS DE UI
   public onTimerExpiration(callback: (locationId: string, locationNote: string) => void): void {
     this.onTimerExpirationCallbacks.push(callback);
   }
@@ -46,7 +42,6 @@ class TimerManager {
     this.onTimerReminderCallbacks.push(callback);
   }
 
-  // 🆕 MÉTODOS PARA EJECUTAR CALLBACKS
   private executeExpirationCallbacks(locationId: string, locationNote: string): void {
     this.onTimerExpirationCallbacks.forEach((callback) => {
       try {
@@ -67,9 +62,6 @@ class TimerManager {
     });
   }
 
-  /**
-   * Configurar handlers del ciclo de vida de la app
-   */
   private setupAppLifecycleHandlers(): void {
     // Guardar estado cuando la app se oculta
     document.addEventListener("visibilitychange", () => {
@@ -82,22 +74,17 @@ class TimerManager {
       }
     });
 
-    // Guardar estado antes de cerrar
     window.addEventListener("beforeunload", () => {
       console.log("🚪 Timer: App cerrándose - guardando estado");
       this.saveTimersToStorage();
     });
 
-    // Restaurar estado cuando la app vuelve
     window.addEventListener("focus", () => {
       console.log("👁️ Timer: App enfocada - sincronizando");
       this.verifyTimerStates();
     });
   }
 
-  /**
-   * Guardar estado de timers en localStorage
-   */
   private saveTimersToStorage(): void {
     try {
       const data = {
@@ -112,9 +99,6 @@ class TimerManager {
     }
   }
 
-  /**
-   * Restaurar estado de timers desde localStorage
-   */
   private restoreTimersFromStorage(): void {
     try {
       const stored = localStorage.getItem(this.STORAGE_KEY);
@@ -127,7 +111,6 @@ class TimerManager {
 
       const now = Date.now();
       for (const [locationId, state] of restoredStates) {
-        // 🔧 FIX: Verificación de tipo más estricta
         if (
           state &&
           typeof state === "object" &&
@@ -159,9 +142,6 @@ class TimerManager {
     }
   }
 
-  /**
-   * Verificar estado de timers y limpiar expirados
-   */
   private verifyTimerStates(): void {
     const now = Date.now();
     const expiredTimers: string[] = [];
@@ -179,18 +159,12 @@ class TimerManager {
     }
   }
 
-  /**
-   * Limpiar timer expirado
-   */
   private cleanupExpiredTimer(locationId: string): void {
     this.clearExistingTimers(locationId);
     this.timerStates.delete(locationId);
     console.log(`🗑️ Timer expirado limpiado: ${locationId}`);
   }
 
-  /**
-   * Cancelar timer específico
-   */
   public cancelTimer(locationId: string): void {
     console.log(`🗑️ Cancelando timer para: ${locationId}`);
     this.clearExistingTimers(locationId);
@@ -198,9 +172,6 @@ class TimerManager {
     this.saveTimersToStorage();
   }
 
-  /**
-   * Limpiar timers existentes para una ubicación
-   */
   private clearExistingTimers(locationId: string): void {
     const existingTimers = this.activeTimers.get(locationId);
     if (existingTimers?.length) {
@@ -212,9 +183,6 @@ class TimerManager {
     this.activeTimers.delete(locationId);
   }
 
-  /**
-   * 🔥 PROGRAMAR TIMER PRINCIPAL - SIN NOTIFICACIONES PUSH
-   */
   public async scheduleTimer(location: CarLocation): Promise<void> {
     if (!location.expiryTime) {
       console.warn("⚠️ No se puede programar timer sin tiempo de expiración");
@@ -229,7 +197,6 @@ class TimerManager {
       return;
     }
 
-    // Cancelar timers existentes
     this.clearExistingTimers(id);
 
     console.log(`⏱️ Programando timer para: ${locationNote}`);
@@ -238,7 +205,6 @@ class TimerManager {
     const locationTimers: number[] = [];
     const reminderTime = reminderMinutes ? expiryTime - reminderMinutes * 60000 : undefined;
 
-    // Crear estado del timer
     const timerState = {
       locationId: id,
       reminderTime,
@@ -250,7 +216,6 @@ class TimerManager {
 
     this.timerStates.set(id, timerState);
 
-    // 🔥 RECORDATORIO - Solo callback UI, SIN notificación push
     if (reminderTime && reminderTime > now) {
       const timeUntilReminder = reminderTime - now;
       console.log(`⏰ Programando recordatorio en ${Math.round(timeUntilReminder / 1000 / 60)} minutos`);
@@ -259,7 +224,6 @@ class TimerManager {
         console.log(`⏰ Recordatorio activado para: ${locationNote}`);
         const minutesLeft = Math.round((expiryTime - Date.now()) / 1000 / 60);
 
-        // 🆕 EJECUTAR CALLBACKS EN LUGAR DE NOTIFICACIONES PUSH
         this.executeReminderCallbacks(id, locationNote, minutesLeft);
       }, timeUntilReminder);
 
@@ -267,17 +231,14 @@ class TimerManager {
       timerState.reminderScheduled = true;
     }
 
-    // 🔥 EXPIRACIÓN - Solo callback UI, SIN notificación push
     const timeUntilExpiry = expiryTime - now;
     console.log(`🚨 Programando expiración en ${Math.round(timeUntilExpiry / 1000 / 60)} minutos`);
 
     const expiryTimeout = window.setTimeout(() => {
       console.log(`🚨 Timer expirado para: ${locationNote}`);
 
-      // 🆕 EJECUTAR CALLBACKS EN LUGAR DE NOTIFICACIONES PUSH
       this.executeExpirationCallbacks(id, locationNote);
 
-      // Limpiar timer expirado
       this.timerStates.delete(id);
       this.saveTimersToStorage();
     }, timeUntilExpiry);
@@ -285,28 +246,21 @@ class TimerManager {
     locationTimers.push(expiryTimeout);
     timerState.expiryScheduled = true;
 
-    // Guardar timers
     this.activeTimers.set(id, locationTimers);
     this.saveTimersToStorage();
 
     console.log(`✅ Timer programado exitosamente para: ${locationNote}`);
   }
 
-  /**
-   * Obtiene todos los IDs de los timers activos
-   */
   public getActiveTimers(): string[] {
     return Array.from(this.activeTimers.keys());
   }
 
-  /**
-   * Obtiene información detallada de los timers activos
-   */
   public getTimerInfo(): Array<{
     locationId: string;
     timerCount: number;
-    hasNotifications: boolean; // Siempre false ahora
-    hasMobileNotifications: boolean; // Siempre false ahora
+    hasNotifications: boolean;
+    hasMobileNotifications: boolean;
     state: any;
     expiresAt: string;
     remainingMinutes: number;
@@ -314,8 +268,8 @@ class TimerManager {
     return Array.from(this.timerStates.entries()).map(([locationId, state]) => ({
       locationId,
       timerCount: this.activeTimers.get(locationId)?.length || 0,
-      hasNotifications: false, // Ya no hay notificaciones push
-      hasMobileNotifications: false, // Ya no hay notificaciones push
+      hasNotifications: false,
+      hasMobileNotifications: false,
       state: {
         reminderScheduled: state.reminderScheduled,
         expiryScheduled: state.expiryScheduled,
@@ -325,37 +279,26 @@ class TimerManager {
     }));
   }
 
-  /**
-   * Cancela todos los timers de todas las ubicaciones
-   */
   public cancelAllTimers(): void {
     console.log("🗑️ Cancelando TODOS los timers");
 
-    // Cancelar todos los timers individuales
     for (const locationId of this.activeTimers.keys()) {
       this.clearExistingTimers(locationId);
     }
 
-    // Limpiar todo
     this.activeTimers.clear();
     this.timerStates.clear();
 
-    // Limpiar storage
     localStorage.removeItem(this.STORAGE_KEY);
 
     console.log("✅ Todos los timers cancelados");
   }
 
-  /**
-   * Sincronizar timers con ubicaciones guardadas
-   */
   public async syncWithSavedLocations(locations: CarLocation[]): Promise<void> {
     console.log("🔄 Sincronizando timers con ubicaciones guardadas");
 
-    // Cancelar todos los timers actuales
     this.cancelAllTimers();
 
-    // Re-programar timers para ubicaciones activas
     const activeLocations = locations.filter((location) => location.expiryTime && location.expiryTime > Date.now());
 
     console.log(`🔄 Sincronizando ${activeLocations.length} timers activos`);
@@ -372,9 +315,6 @@ class TimerManager {
     console.log("✅ Sincronización de timers completada");
   }
 
-  /**
-   * Método de debug para verificar estado completo
-   */
   public debugStatus(): void {
     console.log("🔍 DEBUG - Estado COMPLETO de TimerManager:");
     console.log("- Timers JS activos:", this.getActiveTimers());
@@ -386,14 +326,10 @@ class TimerManager {
       reminder: this.onTimerReminderCallbacks.length,
     });
 
-    // Estado de storage
     const saved = localStorage.getItem(this.STORAGE_KEY);
     console.log("💾 Storage backup:", saved ? JSON.parse(saved) : "Vacío");
   }
 
-  /**
-   * Obtener estadísticas del sistema
-   */
   public getSystemStats(): {
     activeTimers: number;
     totalStates: number;
@@ -403,7 +339,6 @@ class TimerManager {
     const activeCount = this.getActiveTimers().length;
     const stateCount = this.timerStates.size;
 
-    // Encontrar próxima expiración
     let nextExpiration: number | null = null;
     for (const state of this.timerStates.values()) {
       if (state.expiryTime > Date.now()) {
@@ -413,7 +348,6 @@ class TimerManager {
       }
     }
 
-    // Determinar salud del sistema
     let systemHealth: "good" | "warning" | "error" = "good";
     if (Math.abs(activeCount - stateCount) > 2) {
       systemHealth = "warning";
@@ -430,21 +364,17 @@ class TimerManager {
     };
   }
 
-  /**
-   * Test del sistema de timers (sin notificaciones push)
-   */
   public async testTimerSystem(): Promise<void> {
     console.log("🧪 Iniciando test del sistema de timers (SIN notificaciones push)");
 
-    // Crear ubicación de prueba
     const testLocation: CarLocation = {
       id: "test-timer-" + Date.now(),
       latitude: 40.7128,
       longitude: -74.006,
       timestamp: Date.now(),
       note: "Test Timer Sistema",
-      expiryTime: Date.now() + 90 * 1000, // 90 segundos
-      reminderMinutes: 1, // 1 minuto de recordatorio
+      expiryTime: Date.now() + 90 * 1000,
+      reminderMinutes: 1,
     };
 
     try {
@@ -454,7 +384,6 @@ class TimerManager {
       console.log("✅ Timer de prueba programado exitosamente");
       console.log("⏱️ Los callbacks se ejecutarán en 1 minuto y 1.5 minutos");
 
-      // Auto-limpiar después de 3 minutos
       setTimeout(() => {
         this.cancelTimer(testLocation.id);
         console.log("🧹 Timer de prueba limpiado automáticamente");
@@ -464,7 +393,6 @@ class TimerManager {
     }
   }
 
-  // Resto de métodos que no necesitan cambios...
   public isTimerActive(locationId: string): boolean {
     const state = this.timerStates.get(locationId);
     return state ? state.expiryTime > Date.now() : false;
@@ -500,12 +428,10 @@ class TimerManager {
   public cleanup(): void {
     console.log("🧹 Limpiando sistema completo de timers");
 
-    // Cancelar todos los timers activos
     for (const locationId of this.activeTimers.keys()) {
       this.clearExistingTimers(locationId);
     }
 
-    // Limpiar storage
     localStorage.removeItem(this.STORAGE_KEY);
 
     console.log("✅ Sistema de timers limpiado completamente");
@@ -514,7 +440,6 @@ class TimerManager {
 
 export const timerManager = TimerManager.getInstance();
 
-// Hacer disponible para debugging
 if (typeof window !== "undefined") {
   (window as any).timerManager = timerManager;
 }

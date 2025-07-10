@@ -12,7 +12,7 @@
 - 📸 **Fotos de referencia** para recordar mejor
 - 📊 **Estadísticas de uso** y historial
 - 🎯 **Búsqueda por proximidad** para encontrar tu coche
-- 💰 **Control de costos** de aparcamiento
+- 💰 **Control de costes** de aparcamiento
 
 ## 🚀 **Tecnologías**
 
@@ -102,7 +102,7 @@ npm run preview
    - Abrir app → Ver mapa → Navegar hasta el coche
 
 4. **Gestión Completa**
-   - Fotos, notas, costos, historial
+   - Fotos, notas, costes, historial
 
 ## 🔧 **Configuración**
 

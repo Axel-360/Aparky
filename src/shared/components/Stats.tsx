@@ -1,4 +1,4 @@
-// src/shared/components/Stats/Stats.tsx
+// src/shared/components/Stats.tsx
 import React from "react";
 import type { CarLocation } from "@/types/location";
 import { calculateLocationStats } from "@/utils/stats";
@@ -23,7 +23,6 @@ interface StatsProps {
 }
 
 const Stats: React.FC<StatsProps> = ({ locations, isOpen, onClose }) => {
-  // La lógica para calcular las estadísticas no cambia en absoluto.
   const stats = calculateLocationStats(locations);
   const weekDays = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
   const weekDaysPlural = ["domingos", "lunes", "martes", "miércoles", "jueves", "viernes", "sábados"];
@@ -32,11 +31,9 @@ const Stats: React.FC<StatsProps> = ({ locations, isOpen, onClose }) => {
   const formatHour = (hour: number): string => `${hour.toString().padStart(2, "0")}:00`;
 
   const getWeekdayPercentage = (count: number): number => {
-    // Evita la división por cero si no hay ubicaciones
     if (stats.totalLocations === 0) return 0;
     const maxCount = Math.max(...stats.weeklyCount);
     if (maxCount === 0) return 0;
-    // La altura será relativa al día más activo, no al total, para que la barra más alta siempre sea 100%
     return Math.round((count / maxCount) * 100);
   };
 
@@ -123,7 +120,6 @@ const Stats: React.FC<StatsProps> = ({ locations, isOpen, onClose }) => {
   );
 };
 
-// Componentes auxiliares para mantener el código limpio
 const StatCard = ({
   icon,
   title,

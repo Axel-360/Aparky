@@ -1,4 +1,4 @@
-// src/features/location/components/SavedLocations/SavedLocations.tsx - CON EDICIÓN
+// src/features/location/components/SavedLocations.tsx
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import type { CarLocation, DateFilter } from "@/types/location";
 import { deleteCarLocation, updateCarLocation } from "@/utils/storage";
@@ -7,7 +7,7 @@ import { copyToClipboard } from "@/utils/helpers";
 import { timerManager } from "@/utils/timerManager";
 import SearchFilter from "./SearchFilter";
 import EditLocationDialog from "./EditLocationDialog";
-import { LocationDeleteDialog } from "@/shared/components/ConfirmationDialog/ConfirmationDialog";
+import { LocationDeleteDialog } from "@/shared/components/ConfirmationDialog";
 import {
   Button,
   Card,
@@ -45,7 +45,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Target,
-  Edit, // ← NUEVO IMPORT
+  Edit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +63,6 @@ interface SavedLocationsProps {
   onLocationUpdated?: (locationId: string, updates: Partial<CarLocation>) => void; // ← NUEVO PROP
 }
 
-// 🚀 OPTIMIZACIÓN 1: Componente de galería de fotos mejorado
 const PhotoGallery = React.memo<{
   photos: string[];
   locationNote?: string;
@@ -92,7 +91,6 @@ const PhotoGallery = React.memo<{
     }
   };
 
-  // Modal con foto ampliada
   const PhotoModal = () => {
     if (selectedPhoto === null) return null;
 
@@ -188,7 +186,6 @@ const PhotoGallery = React.memo<{
 
 PhotoGallery.displayName = "PhotoGallery";
 
-// 🚀 OPTIMIZACIÓN 2: Memoizar componente de tarjeta individual CON EDICIÓN
 const LocationCard = React.memo<{
   location: CarLocation;
   isLatest: boolean;
@@ -209,37 +206,30 @@ const LocationCard = React.memo<{
     onNavigateToLocation,
     onTimerExtend,
     onTimerCancel,
-    onLocationUpdated, // ← NUEVO
+    onLocationUpdated,
   }) => {
-    // ← NUEVO: Estado para el dialog de edición
     const [showEditDialog, setShowEditDialog] = useState(false);
 
-    // ← NUEVO: Handler para editar ubicación
     const handleEdit = useCallback(
       async (updates: Partial<CarLocation>) => {
         try {
-          // Actualizar en storage
           updateCarLocation(location.id, updates);
 
-          // Actualizar estado local
           onLocationUpdated?.(location.id, updates);
 
-          // Actualizar timer si es necesario
           if (updates.expiryTime) {
             const updatedLocation = { ...location, ...updates };
             timerManager.scheduleTimer(updatedLocation);
           } else if (updates.expiryTime === undefined) {
-            // Si se removió el timer
             timerManager.cancelTimer(location.id);
           }
         } catch (error) {
-          throw error; // Propagar error para que EditLocationDialog lo maneje
+          throw error;
         }
       },
       [location, onLocationUpdated]
     );
 
-    // 🚀 OPTIMIZACIÓN 3: Memoizar cálculos pesados dentro de la card
     const timerStatus = useMemo(() => {
       if (!location.expiryTime) return "inactive";
       const now = Date.now();
@@ -260,7 +250,6 @@ const LocationCard = React.memo<{
       return `hace ${days} días`;
     }, []);
 
-    // NUEVO: Función para determinar el tipo de ubicación
     const getLocationTypeInfo = useCallback((location: CarLocation) => {
       if (location.isManualPlacement) {
         return {
@@ -379,17 +368,14 @@ const LocationCard = React.memo<{
       onTimerCancel(location.id);
     }, [onTimerCancel, location.id]);
 
-    // ← NUEVO: Handler para abrir dialog de edición
     const handleEditClick = useCallback(() => {
       setShowEditDialog(true);
     }, []);
 
-    // ← NUEVO: Handler para cerrar dialog de edición
     const handleCloseEditDialog = useCallback(() => {
       setShowEditDialog(false);
     }, []);
 
-    // NUEVO: Obtener información del tipo de ubicación
     const locationTypeInfo = getLocationTypeInfo(location);
 
     return (
@@ -399,9 +385,9 @@ const LocationCard = React.memo<{
             <div className="md:col-span-1 space-y-3">
               <PhotoGallery photos={location.photos || []} locationNote={location.note} />
 
-              {/* ← BOTONES ACTUALIZADOS CON EDITAR */}
+              {/* BOTONES ACTUALIZADOS CON EDITAR */}
               <div className="flex justify-around items-center bg-muted/50 p-1 rounded-md">
-                {/* ← NUEVO: Botón de editar como PRIMERO */}
+                {/*  Botón de editar como PRIMERO */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -470,7 +456,7 @@ const LocationCard = React.memo<{
                   </Badge>
                 )}
 
-                {/* NUEVO: Badge de tipo de ubicación */}
+                {/* Badge de tipo de ubicación */}
                 <Badge
                   variant={locationTypeInfo.badgeVariant}
                   className={cn("flex items-center gap-1.5", locationTypeInfo.badgeColor)}
@@ -523,7 +509,7 @@ const LocationCard = React.memo<{
           </CardContent>
         </Card>
 
-        {/* ← NUEVO: Dialog de edición */}
+        {/* Dialog de edición */}
         <EditLocationDialog
           isOpen={showEditDialog}
           onClose={handleCloseEditDialog}
@@ -548,7 +534,7 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
   onShowAllChange,
   onTimerExtend,
   onTimerCancel,
-  onLocationUpdated, // ← NUEVO PROP
+  onLocationUpdated,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -564,7 +550,6 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
     isDeleting: false,
   });
 
-  // 🚀 OPTIMIZACIÓN 4: Memoizar función getTimeLeft para evitar recreaciones
   const getTimeLeft = useCallback((expiryTime: number): string => {
     const now = Date.now();
     const remaining = expiryTime - now;
@@ -574,7 +559,6 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   }, []);
 
-  // 🚀 OPTIMIZACIÓN 5: Actualizar timers de forma más eficiente
   useEffect(() => {
     const updateAllTimers = () => {
       const newTimerStates: { [locationId: string]: string } = {};
@@ -587,11 +571,10 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
     };
 
     updateAllTimers();
-    const interval = setInterval(updateAllTimers, 30000); // Cada 30 segundos en lugar de cada segundo
+    const interval = setInterval(updateAllTimers, 30000);
     return () => clearInterval(interval);
   }, [locations, getTimeLeft]);
 
-  // 🚀 OPTIMIZACIÓN 6: Memoizar el filtrado y ordenado pesado
   const filteredAndSortedLocations = useMemo(() => {
     let filtered = filterLocationsByDate(locations, dateFilter);
 
@@ -609,12 +592,10 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
     );
   }, [locations, searchQuery, dateFilter, sortBy]);
 
-  // 🚀 OPTIMIZACIÓN 7: Memoizar las ubicaciones mostradas
   const displayedLocations = useMemo(() => {
     return showAll ? filteredAndSortedLocations : filteredAndSortedLocations.slice(0, 5);
   }, [filteredAndSortedLocations, showAll]);
 
-  // Callbacks optimizados
   const handleDeleteClick = useCallback((locationToDelete: CarLocation) => {
     setDeleteDialog({
       isOpen: true,
@@ -631,7 +612,6 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
       await new Promise((resolve) => setTimeout(resolve, 500));
       deleteCarLocation(deleteDialog.location.id);
       onLocationDeleted(deleteDialog.location.id);
-      // toast.success("Ubicación eliminada correctamente.");
       setDeleteDialog({
         isOpen: false,
         location: null,
@@ -671,7 +651,7 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
       }
 
       if (location.cost) {
-        info.push(`Costo: ${location.cost.toFixed(2)}€`);
+        info.push(`Coste: ${location.cost.toFixed(2)}€`);
       }
 
       if (location.expiryTime) {
@@ -683,7 +663,6 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
         info.push(`Fotos: ${location.photos.length} imagen${location.photos.length > 1 ? "es" : ""}`);
       }
 
-      // NUEVO: Información sobre el tipo de ubicación
       if (location.isManualPlacement) {
         info.push("Tipo: Ubicación marcada manualmente");
       } else if (location.accuracy) {
@@ -768,7 +747,7 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
                 onNavigateToLocation={onNavigateToLocation}
                 onTimerExtend={onTimerExtend}
                 onTimerCancel={onTimerCancel}
-                onLocationUpdated={onLocationUpdated} // ← NUEVO PROP PASADO
+                onLocationUpdated={onLocationUpdated}
               />
             );
           })}

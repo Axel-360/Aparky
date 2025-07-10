@@ -1,4 +1,4 @@
-// src/shared/components/ErrorBoundary/ErrorBoundary.tsx
+// src/shared/components/ErrorBoundary.tsx
 import React, { Component } from "react";
 import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button, Alert, AlertDescription } from "@/shared/ui";
@@ -29,7 +29,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    // Actualiza el state para que el siguiente renderizado muestre la UI de error
     return {
       hasError: true,
       error,
@@ -38,26 +37,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log del error
     console.error("ErrorBoundary caught an error:", error, errorInfo);
 
-    // Actualizar el estado con la información del error
     this.setState({
       error,
       errorInfo,
     });
 
-    // Llamar al callback de error si se proporciona
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
 
-    // Enviar error a servicio de monitoreo (si está configurado)
     this.reportError(error, errorInfo);
   }
 
   private reportError = (error: Error, errorInfo: React.ErrorInfo) => {
-    // Aquí podrías enviar el error a un servicio como Sentry, LogRocket, etc.
     const errorReport = {
       message: error.message,
       stack: error.stack,
@@ -68,7 +62,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorId: this.state.errorId,
     };
 
-    // En desarrollo, mostrar en consola
     if (process.env.NODE_ENV === "development") {
       console.group("🚨 Error Report");
       console.error("Error:", error);
@@ -76,13 +69,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       console.error("Full Report:", errorReport);
       console.groupEnd();
     }
-
-    // Aquí podrías enviar a tu servicio de logging
-    // sendToErrorService(errorReport);
   };
 
   private handleRetry = () => {
-    // Resetear el estado del error
     this.setState({
       hasError: false,
       error: null,
@@ -92,12 +81,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   private handleGoHome = () => {
-    // Navegar al inicio y resetear
     window.location.href = "/";
   };
 
   private handleReportIssue = () => {
-    // Crear reporte para el usuario
     const reportData = {
       error: this.state.error?.message,
       timestamp: new Date().toISOString(),
@@ -118,14 +105,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   render() {
-    // Si hay un error, mostrar la UI de error
     if (this.state.hasError) {
-      // Si se proporciona un fallback personalizado, usarlo
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
-      // UI de error por defecto
       return (
         <div className="min-h-[400px] flex items-center justify-center p-4">
           <Card className="w-full max-w-lg mx-auto">
@@ -208,12 +192,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       );
     }
 
-    // Si no hay error, renderiza los children normalmente
     return this.props.children;
   }
 }
 
-// HOC para usar en componentes funcionales
 export const withErrorBoundary = <P extends object>(
   Component: React.ComponentType<P>,
   fallback?: ReactNode,
@@ -228,7 +210,6 @@ export const withErrorBoundary = <P extends object>(
   };
 };
 
-// Hook para trigger manual de errores (útil para testing)
 export const useErrorHandler = () => {
   return (error: Error) => {
     throw error;

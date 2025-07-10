@@ -1,4 +1,4 @@
-// src/features/location/components/SearchFilter/SearchFilter.tsx
+// src/features/location/components/SearchFilter.tsx
 import React from "react";
 import {
   Button,
@@ -45,7 +45,6 @@ const SearchFilter: React.FC<SearchFilterProps> = ({ onSearchChange, onDateFilte
       type="single"
       collapsible
       className="w-full bg-card border rounded-lg"
-      // Si hay filtros activos, el acordeón se abre por defecto
       defaultValue={hasActiveFilters ? "item-1" : undefined}
     >
       <AccordionItem value="item-1" className="border-b-0">

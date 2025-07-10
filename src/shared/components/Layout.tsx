@@ -1,9 +1,9 @@
-// src/shared/components/Layout/Layout.tsx
+// src/shared/components/Layout.tsx
 import React from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { ErrorBoundary } from "@/shared/components/ErrorBoundary/ErrorBoundary";
-import Header from "@/shared/components/Header/Header";
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
+import Header from "@/shared/components/Header";
 import { useTheme } from "@/shared/ui/theme-provider";
 
 interface LayoutProps {
@@ -22,7 +22,6 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps, sidebar, showFooter = true }) => {
   const { theme } = useTheme();
 
-  // Función para obtener el texto del tema actual
   const getThemeDisplayText = () => {
     switch (theme) {
       case "light":
@@ -30,7 +29,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
       case "dark":
         return "🌙 Modo Oscuro";
       case "system":
-        // Detectar si el sistema está en modo oscuro
         const isSystemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         return `🖥️ Modo Sistema (${isSystemDark ? "Oscuro" : "Claro"})`;
       default:
@@ -48,7 +46,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-7xl">
         {sidebar ? (
-          // Layout con sidebar (estructura actual)
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Sidebar izquierdo */}
             <aside className="lg:col-span-4 space-y-6">
@@ -61,7 +58,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
             </section>
           </div>
         ) : (
-          // Layout sin sidebar (para futuras páginas)
           <div className="max-w-4xl mx-auto">
             <ErrorBoundary>{children}</ErrorBoundary>
           </div>
@@ -96,7 +92,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
   );
 };
 
-// Layout específico para la página principal (con sidebar)
 export const MainLayout: React.FC<{
   children: ReactNode;
   sidebar: ReactNode;
@@ -110,7 +105,6 @@ export const MainLayout: React.FC<{
   );
 };
 
-// Layout específico para páginas sin sidebar
 export const SimpleLayout: React.FC<{
   children: ReactNode;
   headerProps: LayoutProps["headerProps"];
@@ -124,7 +118,6 @@ export const SimpleLayout: React.FC<{
   );
 };
 
-// Layout específico para páginas de configuración o modales
 export const ModalLayout: React.FC<{
   children: ReactNode;
   title?: string;

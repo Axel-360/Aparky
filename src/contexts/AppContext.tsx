@@ -1,6 +1,6 @@
 // src/contexts/AppContext.tsx
 import React, { createContext, useContext, useReducer, useEffect } from "react";
-import type { ReactNode } from "react"; // ← CAMBIO: import type
+import type { ReactNode } from "react";
 import type { CarLocation, UserPreferences } from "@/types/location";
 import { getCarLocations, saveCarLocation, deleteCarLocation, updateCarLocation } from "@/utils/storage";
 import { getUserPreferences, saveUserPreferences } from "@/utils/preferences";
@@ -111,21 +111,17 @@ function appReducer(state: AppState, action: AppAction): AppState {
 interface AppContextType {
   state: AppState;
   actions: {
-    // Location actions
     saveLocation: (location: CarLocation) => Promise<void>;
     updateLocation: (id: string, updates: Partial<CarLocation>) => Promise<void>;
     deleteLocation: (id: string) => Promise<void>;
     selectLocation: (location: CarLocation) => void;
 
-    // Preferences actions
     updatePreferences: (preferences: Partial<UserPreferences>) => void;
 
-    // UI actions
     setMapState: (center?: [number, number], zoom?: number, selectedId?: string) => void;
     setView: (view: "map" | "proximity") => void;
     setError: (error: string | null) => void;
 
-    // Timer actions
     extendTimer: (locationId: string, minutes: number) => Promise<void>;
     cancelTimer: (locationId: string) => Promise<void>;
   };
@@ -148,7 +144,6 @@ interface AppProviderProps {
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Initialize app
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -157,7 +152,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         const locations = getCarLocations();
         const preferences = getUserPreferences();
 
-        // Schedule existing timers
         locations.forEach((location) => {
           if (location.expiryTime && location.expiryTime > Date.now()) {
             timerManager.scheduleTimer(location);
@@ -174,13 +168,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     initializeApp();
   }, []);
 
-  // Actions
   const saveLocation = async (location: CarLocation) => {
     try {
       saveCarLocation(location);
       dispatch({ type: "ADD_LOCATION", payload: location });
 
-      // Schedule timer if needed
       if (location.expiryTime && location.expiryTime > Date.now()) {
         timerManager.scheduleTimer(location);
       }
@@ -198,7 +190,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       updateCarLocation(id, updates);
       dispatch({ type: "UPDATE_LOCATION", payload: { id, updates } });
 
-      // Update timer if needed
       const updatedLocation = state.locations.find((loc) => loc.id === id);
       if (updatedLocation && updates.expiryTime) {
         const newLocation = { ...updatedLocation, ...updates };
@@ -274,10 +265,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       const updatedLocation = { ...location, ...updates };
       timerManager.scheduleTimer(updatedLocation);
 
-      toast.success(`Timer extendido ${minutes} minutos`);
+      toast.success(`Temporizador extendido ${minutes} minutos`);
     } catch (error) {
       console.error("Error extending timer:", error);
-      toast.error("Error al extender el timer");
+      toast.error("Error al extender el Temporizador");
     }
   };
 
@@ -292,10 +283,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       await updateLocationAction(locationId, updates);
       timerManager.cancelTimer(locationId);
 
-      toast.success("Timer cancelado");
+      toast.success("Temporizador cancelado");
     } catch (error) {
       console.error("Error canceling timer:", error);
-      toast.error("Error al cancelar el timer");
+      toast.error("Error al cancelar el temporizador");
     }
   };
 
@@ -318,7 +309,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 };
 
-// Hooks especializados para diferentes partes del estado
 export const useLocations = () => {
   const { state, actions } = useAppContext();
   return {

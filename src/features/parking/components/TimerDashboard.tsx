@@ -1,4 +1,4 @@
-// src/features/parking/components/TimerDashboard/TimerDashboard.tsx
+// src/features/parking/components/TimerDashboard.tsx
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -28,11 +28,9 @@ import {
 import { cn } from "@/lib/utils";
 import type { CarLocation } from "@/types/location";
 import { updateCarLocation } from "@/utils/storage";
-// ELIMINADO: import { notificationManager } from "@/utils/notificationManager";
 import { timerManager } from "@/utils/timerManager";
 import { toast } from "sonner";
 
-// --- Interfaces ---
 interface TimerWidget {
   id: string;
   locationId: string;
@@ -58,13 +56,11 @@ interface TimerDashboardProps {
   onLocationUpdated?: (locationId: string, updates: Partial<CarLocation>) => void;
 }
 
-// Estado para los datos que se actualizan cada segundo
 interface LiveTimerData {
   timeLeft: string;
   progress: number;
 }
 
-// --- Componente ---
 const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUpdated }) => {
   const [activeTimers, setActiveTimers] = useState<TimerWidget[]>([]);
   const [stats, setStats] = useState<ParkingStats>({ totalActive: 0, totalExpired: 0, totalExtensions: 0 });
@@ -82,7 +78,6 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${minutes}m`;
 
-    // Muestra mm:ss si se solicita y el tiempo es menor a una hora
     if (showSeconds && hours < 1) {
       return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     }
@@ -112,7 +107,6 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
     };
   };
 
-  // Este useEffect se ejecuta con poca frecuencia para actualizar el estado general
   useEffect(() => {
     const updateCoreTimers = () => {
       const locationsWithTimers = locations.filter((loc) => loc.expiryTime);
@@ -126,7 +120,6 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
     return () => clearInterval(interval);
   }, [locations]);
 
-  // 🔧 NUEVO: Efecto separado para actualizar estadísticas cuando cambien los timers
   useEffect(() => {
     const activeNonExpired = activeTimers.filter((timer) => timer.status !== "expired");
     const expiredCount = activeTimers.filter((timer) => timer.status === "expired").length;
@@ -142,9 +135,8 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
         ? new Date(nextExpiration).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         : "—",
     });
-  }, [activeTimers]); // 🔧 Se ejecuta cada vez que cambien los activeTimers
+  }, [activeTimers]);
 
-  // --- NUEVO useEffect para actualizaciones de UI fluidas ---
   useEffect(() => {
     const updateLiveUI = () => {
       setLiveData((prevData) => {
@@ -158,7 +150,6 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
               progress: totalDuration > 0 ? (timeRemaining / totalDuration) * 100 : 0,
             };
           } else {
-            // Limpia los datos si el temporizador expira para que no se muestren datos antiguos
             if (prevData[timer.id]) {
               newLiveData[timer.id] = { timeLeft: "Expirado", progress: 0 };
             }
@@ -168,11 +159,10 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
       });
     };
 
-    const liveInterval = setInterval(updateLiveUI, 1000); // Se ejecuta cada segundo
+    const liveInterval = setInterval(updateLiveUI, 1000);
     return () => clearInterval(liveInterval);
-  }, [activeTimers]); // Se reactiva si la lista de timers cambia
+  }, [activeTimers]);
 
-  // 🔥 FUNCIÓN PARA EXTENDER TIMER (con actualización inmediata del estado local)
   const extendTimer = (timerId: string, minutes: number) => {
     const location = locations.find((loc) => loc.id === timerId);
     if (!location || !location.expiryTime) return;
@@ -181,10 +171,8 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
     const newExtensionCount = (location.extensionCount || 0) + 1;
     const updates = { expiryTime: newExpiryTime, extensionCount: newExtensionCount };
 
-    // Actualizar en storage
     updateCarLocation(timerId, updates);
 
-    // 🔧 CRÍTICO: Actualizar estado local inmediatamente para UI responsive
     setActiveTimers((prevTimers) =>
       prevTimers.map((timer) =>
         timer.id === timerId
@@ -198,41 +186,32 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
       )
     );
 
-    // Notificar al componente padre
     onLocationUpdated?.(timerId, updates);
 
-    // Re-programar timer con timerManager
     const updatedLocation = { ...location, ...updates };
     timerManager.scheduleTimer(updatedLocation);
 
-    // 🔧 MEJORADO: Toast con información completa de la ubicación
     const displayName =
       location.note ||
       location.address ||
       `Lat: ${location.latitude.toFixed(4)}, Lng: ${location.longitude.toFixed(4)}`;
-    toast.success(`⏰ Timer extendido ${minutes} minutos para: ${displayName}`, {
+    toast.success(`⏰ Temporizador extendido ${minutes} minutos para: ${displayName}`, {
       duration: 4000,
     });
   };
 
-  // 🔥 FUNCIÓN PARA CANCELAR TIMER (con actualización inmediata del estado local)
   const cancelTimer = (timerId: string) => {
     const location = locations.find((loc) => loc.id === timerId);
     const updates = { expiryTime: undefined, reminderMinutes: undefined, extensionCount: undefined };
 
-    // Actualizar en storage
     updateCarLocation(timerId, updates);
 
-    // 🔧 CRÍTICO: Remover del estado local inmediatamente
     setActiveTimers((prevTimers) => prevTimers.filter((timer) => timer.id !== timerId));
 
-    // Notificar al componente padre
     onLocationUpdated?.(timerId, updates);
 
-    // Cancelar timer en timerManager
     timerManager.cancelTimer(timerId);
 
-    // 🔧 MEJORADO: Toast con información completa de la ubicación
     const displayName = location?.note || location?.address || `Ubicación ${location?.id}`;
     toast.success(`⏰ Temporizador cancelado para: ${displayName}`, {
       duration: 4000,

@@ -152,13 +152,15 @@ Usamos valores altos y !important para garantizar el orden de las capas.
   z-index: 1002 !important;
 }
 
-/* Capa 2000: Notificaciones (Toasts) */
+/* Capa 9999: Notificaciones (Toasts) */
 /* Deben estar por encima de todo */
 [data-sonner-toast],
 [data-sonner-toaster] {
   z-index: 9999 !important;
 }
 
+
+/*Background de las notificaciones segun tema*/
 .custom-toast {
   background: white !important;
   color: black !important;

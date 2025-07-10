@@ -1,4 +1,4 @@
-// src/features/parking/components/ParkingTimer/ParkingTimer.tsx
+// src/features/parking/components/ParkingTimer.tsx
 import React, { useState, useEffect } from "react";
 import {
   Card,

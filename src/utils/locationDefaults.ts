@@ -1,4 +1,4 @@
-// utils/locationDefaults.ts - VERSIÓN CORREGIDA
+// utils/locationDefaults.ts
 import React from "react";
 import { toast } from "sonner";
 import { Button, Input } from "@/shared/ui";
@@ -273,7 +273,6 @@ export class LocationManager {
   }
 }
 
-// Hook personalizado para usar el LocationManager
 export const useSmartLocation = () => {
   const [initialLocation, setInitialLocation] = React.useState<{
     coordinates: [number, number];
@@ -321,7 +320,6 @@ export const useSmartLocation = () => {
   };
 };
 
-// Componente para configurar ubicación preferida
 export const LocationPreferenceSettings: React.FC<{
   onPreferenceSet: (lat: number, lng: number, name: string) => void;
 }> = ({ onPreferenceSet }) => {

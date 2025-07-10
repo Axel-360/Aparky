@@ -1,4 +1,4 @@
-// src/shared/components/Header/Header.tsx
+// src/shared/components/Header.tsx
 import React from "react";
 import { Button } from "@/shared/ui";
 import { Map, Search, BarChart3, Settings } from "lucide-react";

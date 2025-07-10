@@ -1,1 +1,1 @@
-export { default as PhotoCapture } from "./components/PhotoCapture/PhotoCapture";
+export { default as PhotoCapture } from "./components/PhotoCapture";

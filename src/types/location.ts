@@ -1,4 +1,4 @@
-// src/types/location.ts - ACTUALIZADO CON UBICACIONES MANUALES
+// src/types/location.ts
 export interface CarLocation {
   id: string;
   latitude: number;
@@ -6,14 +6,14 @@ export interface CarLocation {
   address?: string;
   timestamp: number;
   note?: string;
-  photos?: string[]; // URLs de las fotos en base64
+  photos?: string[];
   parkingType?: "Calle" | "Garaje" | "Parking" | "Otro";
-  expiryTime?: number; // Timestamp cuando expira el parking
-  cost?: number; // Costo del parking
-  reminderMinutes?: number; // Minutos antes del vencimiento para recordar
+  expiryTime?: number;
+  cost?: number;
+  reminderMinutes?: number;
   extensionCount?: number;
   accuracy?: number;
-  isManualPlacement?: boolean; // NUEVO: Flag para ubicaciones marcadas manualmente
+  isManualPlacement?: boolean;
 }
 
 export interface LocationWithAccuracy {
@@ -28,7 +28,6 @@ export interface GeolocationError {
   message: string;
 }
 
-// Nuevos tipos para las mejoras
 export interface UserPreferences {
   theme: "light" | "dark" | "system";
   sortBy: "date" | "note";
@@ -66,11 +65,10 @@ export interface NavigationLocation extends LocationWithAccuracy {
   heading?: number;
 }
 
-// Constantes útiles para navegación
 export const NAVIGATION_CONSTANTS = {
-  DEFAULT_WALKING_SPEED: 1.39, // metros por segundo (5 km/h)
-  HIGH_ACCURACY_THRESHOLD: 20, // metros
-  LOW_ACCURACY_THRESHOLD: 100, // metros
-  ARRIVAL_THRESHOLD: 15, // metros
-  UPDATE_INTERVAL: 3000, // milisegundos
+  DEFAULT_WALKING_SPEED: 1.39,
+  HIGH_ACCURACY_THRESHOLD: 20,
+  LOW_ACCURACY_THRESHOLD: 100,
+  ARRIVAL_THRESHOLD: 15,
+  UPDATE_INTERVAL: 3000,
 } as const;

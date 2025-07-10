@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-// Hook simplificado para network status
 const useNetworkStatus = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [connectionType, setConnectionType] = useState<string>("desconocido");
@@ -11,7 +10,6 @@ const useNetworkStatus = () => {
     const updateNetworkStatus = () => {
       setIsOnline(navigator.onLine);
 
-      // Detectar tipo de conexión si está disponible
       const connection =
         (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
 
@@ -23,7 +21,6 @@ const useNetworkStatus = () => {
     window.addEventListener("online", updateNetworkStatus);
     window.addEventListener("offline", updateNetworkStatus);
 
-    // Listener para cambios en el tipo de conexión
     const connection = (navigator as any).connection;
     if (connection) {
       connection.addEventListener("change", updateNetworkStatus);

@@ -1,4 +1,4 @@
-// src/shared/components/ConfirmationDialog/ConfirmationDialog.tsx
+// src/shared/components/ConfirmationDialog.tsx
 import React from "react";
 import type { ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
@@ -185,7 +185,6 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   );
 };
 
-// Componentes especializados para casos comunes
 export const DeleteConfirmationDialog: React.FC<
   Omit<ConfirmationDialogProps, "type"> & {
     itemName?: string;
@@ -223,7 +222,6 @@ export const LocationDeleteDialog: React.FC<
   </ConfirmationDialog>
 );
 
-// Hook para manejar confirmaciones
 export const useConfirmation = () => {
   const [isOpen, setIsOpen] = React.useState(false);
   const [config, setConfig] = React.useState<Partial<ConfirmationDialogProps>>({});
@@ -261,7 +259,6 @@ export const useConfirmation = () => {
   };
 };
 
-// Ejemplos de uso para documentación
 export const ConfirmationDialogExamples: React.FC = () => {
   const [showExample, setShowExample] = React.useState<string | null>(null);
 

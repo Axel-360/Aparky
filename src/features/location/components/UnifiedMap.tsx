@@ -3,12 +3,11 @@ import React, { useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import { Button } from "@/shared/ui";
-import { Navigation, RotateCcw, Target } from "lucide-react";
+import { Navigation, Target } from "lucide-react";
 import { toast } from "sonner";
 import type { CarLocation } from "@/types/location";
 import "leaflet/dist/leaflet.css";
 
-// Fix para los iconos de Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
@@ -16,7 +15,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-// Iconos personalizados
 const createIcon = (type: "car" | "gps" | "manual", isSelected: boolean = false) => {
   const colors = {
     car: isSelected ? "#ef4444" : "#3b82f6",
@@ -57,7 +55,6 @@ const createIcon = (type: "car" | "gps" | "manual", isSelected: boolean = false)
   });
 };
 
-// Configuraciones de mapas
 const getMapConfig = (mapType: string) => {
   switch (mapType) {
     case "satellite":
@@ -78,7 +75,6 @@ const getMapConfig = (mapType: string) => {
   }
 };
 
-// Componente para manejar el centro del mapa automáticamente
 const MapController: React.FC<{
   center: [number, number];
   zoom: number;
@@ -100,7 +96,6 @@ const MapController: React.FC<{
   return null;
 };
 
-// Componente para manejar clics en el mapa
 const MapClickHandler: React.FC<{
   onMapClick?: (lat: number, lng: number) => void;
   isClickable: boolean;
@@ -115,20 +110,13 @@ const MapClickHandler: React.FC<{
   return null;
 };
 
-// Componente de controles del mapa
 const MapControls: React.FC<{
   onCurrentLocation?: () => void;
   onReset?: () => void;
   showLocationButton?: boolean;
   showResetButton?: boolean;
   isLoadingLocation?: boolean;
-}> = ({
-  onCurrentLocation,
-  onReset,
-  showLocationButton = true,
-  showResetButton = false,
-  isLoadingLocation = false,
-}) => {
+}> = ({ onCurrentLocation, showLocationButton = true, isLoadingLocation = false }) => {
   return (
     <div className="absolute top-2 right-2 z-10 flex flex-col gap-2">
       {showLocationButton && (
@@ -143,46 +131,29 @@ const MapControls: React.FC<{
           <Navigation className={`h-4 w-4 ${isLoadingLocation ? "animate-spin" : ""}`} />
         </Button>
       )}
-      {showResetButton && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onReset}
-          className="bg-white/90 backdrop-blur-sm"
-          title="Resetear vista"
-        >
-          <RotateCcw className="h-4 w-4" />
-        </Button>
-      )}
     </div>
   );
 };
 
 interface UnifiedMapProps {
-  // Configuración básica
   center: [number, number];
   zoom?: number;
   mapType?: string;
   height?: string;
 
-  // Ubicaciones a mostrar
   locations?: CarLocation[];
   selectedLocationId?: string;
 
-  // Modo manual
   isManualMode?: boolean;
   manualLocation?: [number, number] | null;
   onManualLocationSet?: (lat: number, lng: number) => void;
 
-  // Ubicación GPS
   gpsLocation?: [number, number] | null;
 
-  // Controles
   showControls?: boolean;
   showLocationButton?: boolean;
   showResetButton?: boolean;
 
-  // Eventos
   onLocationClick?: (location: CarLocation) => void;
   onCenterChange?: (center: [number, number], zoom: number) => void;
 }
@@ -211,12 +182,10 @@ export const UnifiedMap: React.FC<UnifiedMapProps> = ({
 
   const mapConfig = getMapConfig(mapType);
 
-  // Actualizar centro cuando cambie la prop
   useEffect(() => {
     setCurrentCenter(center);
   }, [center]);
 
-  // Manejar clic en el mapa para ubicación manual
   const handleMapClick = useCallback(
     (lat: number, lng: number) => {
       if (isManualMode && onManualLocationSet) {
@@ -226,7 +195,6 @@ export const UnifiedMap: React.FC<UnifiedMapProps> = ({
     [isManualMode, onManualLocationSet]
   );
 
-  // Obtener ubicación actual del usuario
   const handleCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       toast.error("Geolocalización no disponible");
@@ -262,14 +230,12 @@ export const UnifiedMap: React.FC<UnifiedMapProps> = ({
     );
   }, [isManualMode, onManualLocationSet, onCenterChange]);
 
-  // Reset vista
   const handleReset = useCallback(() => {
     setCurrentCenter(center);
     setCurrentZoom(zoom);
     onCenterChange?.(center, zoom);
   }, [center, zoom, onCenterChange]);
 
-  // Formatear fecha de forma amigable
   const formatFriendlyDate = (timestamp: number): string => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -349,6 +315,13 @@ export const UnifiedMap: React.FC<UnifiedMapProps> = ({
                       {location.parkingType}
                     </p>
                   )}
+                  {location.cost && (
+                    <p style={{ margin: "5px 0" }}>
+                      <strong>💰 Coste:</strong>
+                      <br />
+                      {location.cost.toFixed(2)}€
+                    </p>
+                  )}
 
                   {location.isManualPlacement && (
                     <p style={{ margin: "5px 0", fontSize: "12px", color: "#f59e0b" }}>
@@ -356,8 +329,16 @@ export const UnifiedMap: React.FC<UnifiedMapProps> = ({
                     </p>
                   )}
 
+                  {location.address && (
+                    <p style={{ margin: "5px 0", fontSize: "12px", color: "#666" }}>
+                      <strong>📍Dirección:</strong>
+                      <br />
+                      {location.address}
+                    </p>
+                  )}
+
                   <p style={{ margin: "5px 0 0 0", fontSize: "11px", color: "#999", fontFamily: "monospace" }}>
-                    📍 {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                    🗺️ {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                   </p>
                 </div>
               </Popup>

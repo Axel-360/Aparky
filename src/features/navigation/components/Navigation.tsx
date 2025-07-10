@@ -1,6 +1,6 @@
-// src/features/navigation/components/Navigation/Navigation.tsx
+// src/features/navigation/components/Navigation.tsx
 import React, { useEffect, useState } from "react";
-import { useNavigation } from "../../hooks/useNavigation";
+import { useNavigation } from "../hooks/useNavigation";
 import type { CarLocation, LocationWithAccuracy } from "@/types/location";
 import {
   Button,
@@ -38,7 +38,6 @@ interface NavigationProps {
   onClose: () => void;
 }
 
-// Tipo local para el estado de navegación
 interface LocalNavigationState {
   isNavigating: boolean;
   currentDistance: number;
@@ -51,7 +50,6 @@ interface LocalNavigationState {
   currentLocation?: { latitude: number; longitude: number };
 }
 
-// Sub-componente para mostrar el resumen de la ruta
 const RouteSummary: React.FC<{ state: LocalNavigationState }> = ({ state }) => {
   const estimatedMinutes =
     state.speed && state.speed > 0.5 ? Math.round(state.currentDistance / state.speed / 60) : null;
@@ -99,7 +97,6 @@ const RouteSummary: React.FC<{ state: LocalNavigationState }> = ({ state }) => {
   );
 };
 
-// Sub-componente para mostrar información de precisión del GPS
 const AccuracyInfo: React.FC<{ accuracy?: number }> = ({ accuracy }) => {
   if (!accuracy) return null;
 
@@ -143,14 +140,12 @@ const Navigation: React.FC<NavigationProps> = ({ targetLocation, onClose }) => {
     enableVibration: true,
   });
 
-  // Auto-iniciar navegación cuando el componente se monta
   useEffect(() => {
     if (!navigationState.isNavigating && !hasArrived && !navError) {
       startNavigation();
     }
   }, []);
 
-  // Condición de carga más robusta
   const isLoading = !navigationState.isNavigating && !navError && !hasArrived && navigationState.currentDistance === 0;
 
   const openInGoogleMaps = () => {

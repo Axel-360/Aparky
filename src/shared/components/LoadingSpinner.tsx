@@ -73,7 +73,6 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     </div>
   );
 
-  // Variante overlay - Pantalla completa
   if (variant === "overlay") {
     return (
       <div
@@ -88,7 +87,6 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     );
   }
 
-  // Variante card - Con fondo y bordes
   if (variant === "card") {
     return (
       <div
@@ -103,7 +101,6 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     );
   }
 
-  // Variante inline - En línea con el contenido
   if (variant === "inline") {
     return (
       <div className={cn("flex items-center gap-2", className)}>
@@ -114,11 +111,9 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     );
   }
 
-  // Variante default - Centrado simple
   return <div className={cn("flex items-center justify-center p-4", className)}>{contentElement}</div>;
 };
 
-// Componentes especializados para casos comunes
 export const LocationSpinner: React.FC<Omit<LoadingSpinnerProps, "type">> = (props) => (
   <LoadingSpinner {...props} type="location" />
 );
@@ -139,7 +134,6 @@ export const TimerSpinner: React.FC<Omit<LoadingSpinnerProps, "type">> = (props)
   <LoadingSpinner {...props} type="timer" />
 );
 
-// HOC para componentes con loading automático
 export const withLoading = <P extends object>(
   Component: React.ComponentType<P>,
   spinnerProps?: Partial<LoadingSpinnerProps>
@@ -155,7 +149,6 @@ export const withLoading = <P extends object>(
   };
 };
 
-// Hook personalizado para estados de loading
 export const useLoadingState = (initialState = false) => {
   const [isLoading, setIsLoading] = React.useState(initialState);
 
@@ -172,7 +165,6 @@ export const useLoadingState = (initialState = false) => {
   };
 };
 
-// Componente de demostración (para storybook o tests)
 export const LoadingSpinnerDemo: React.FC = () => {
   return (
     <div className="space-y-8 p-8">

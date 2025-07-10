@@ -26,14 +26,12 @@ export const useThemeDisplay = () => {
 
     updateDisplayText();
 
-    // Si el tema es sistema, escuchar cambios en la preferencia del sistema
     if (theme === "system") {
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
       const handleChange = () => updateDisplayText();
 
       mediaQuery.addEventListener("change", handleChange);
 
-      // Cleanup listener
       return () => mediaQuery.removeEventListener("change", handleChange);
     }
   }, [theme]);

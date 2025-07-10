@@ -3,29 +3,24 @@ import type { CarLocation } from "../types/location";
 
 const STORAGE_KEY = "car-locations";
 const BACKUP_KEY = "car-locations-backup";
-const MAX_LOCATIONS = 1000; // Límite máximo de ubicaciones para evitar problemas de rendimiento
+const MAX_LOCATIONS = 1000;
 
 export const saveCarLocation = (location: CarLocation): void => {
   try {
     const existingLocations = getCarLocations();
 
-    // Crear backup antes de modificar
     createBackup(existingLocations);
 
-    // Añadir nueva ubicación al principio
     const updatedLocations = [location, ...existingLocations];
 
-    // Limitar el número de ubicaciones si es necesario
     const limitedLocations = updatedLocations.slice(0, MAX_LOCATIONS);
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(limitedLocations));
 
-    // Log para debugging
     console.log(`Location saved successfully. Total locations: ${limitedLocations.length}`);
   } catch (error) {
     console.error("Error saving car location:", error);
 
-    // Intentar restaurar desde backup si hay error
     try {
       restoreFromBackup();
       console.log("Restored from backup after save error");
@@ -47,13 +42,11 @@ export const getCarLocations = (): CarLocation[] => {
 
     const parsed = JSON.parse(stored);
 
-    // Validar que es un array
     if (!Array.isArray(parsed)) {
       console.warn("Invalid locations data format, resetting to empty array");
       return [];
     }
 
-    // Filtrar y validar ubicaciones
     const validLocations = parsed.filter((location) => {
       return (
         location &&
@@ -68,7 +61,6 @@ export const getCarLocations = (): CarLocation[] => {
       );
     });
 
-    // Si se filtraron ubicaciones inválidas, guardar la versión limpia
     if (validLocations.length !== parsed.length) {
       console.warn(`Filtered ${parsed.length - validLocations.length} invalid locations`);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(validLocations));
@@ -78,7 +70,6 @@ export const getCarLocations = (): CarLocation[] => {
   } catch (error) {
     console.error("Error getting car locations:", error);
 
-    // Intentar restaurar desde backup
     try {
       const backup = restoreFromBackup();
       console.log("Restored from backup after get error");
@@ -94,7 +85,6 @@ export const deleteCarLocation = (id: string): void => {
   try {
     const locations = getCarLocations();
 
-    // Crear backup antes de modificar
     createBackup(locations);
 
     const filteredLocations = locations.filter((location) => location.id !== id);
@@ -104,7 +94,6 @@ export const deleteCarLocation = (id: string): void => {
   } catch (error) {
     console.error("Error deleting car location:", error);
 
-    // Intentar restaurar desde backup si hay error
     try {
       restoreFromBackup();
       console.log("Restored from backup after delete error");
@@ -125,7 +114,6 @@ export const updateCarLocation = (id: string, updates: Partial<CarLocation>): vo
   try {
     const locations = getCarLocations();
 
-    // Crear backup antes de modificar
     createBackup(locations);
 
     const updatedLocations = locations.map((location) => (location.id === id ? { ...location, ...updates } : location));
@@ -184,16 +172,13 @@ export const importLocations = (jsonData: string): number => {
   try {
     const data = JSON.parse(jsonData);
 
-    // Validar formato de importación
     if (!data.locations || !Array.isArray(data.locations)) {
       throw new Error("Formato de archivo inválido");
     }
 
-    // Crear backup antes de importar
     const currentLocations = getCarLocations();
     createBackup(currentLocations);
 
-    // Validar y filtrar ubicaciones importadas
     const validImportedLocations = data.locations.filter((location: any) => {
       return (
         location &&
@@ -207,20 +192,16 @@ export const importLocations = (jsonData: string): number => {
       );
     });
 
-    // Generar IDs únicos para ubicaciones importadas si es necesario
     const locationsWithIds = validImportedLocations.map((location: any) => ({
       ...location,
       id: location.id || `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     }));
 
-    // Combinar con ubicaciones existentes y eliminar duplicados
     const allLocations = [...locationsWithIds, ...currentLocations];
     const uniqueLocations = removeDuplicateLocations(allLocations);
 
-    // Ordenar por timestamp descendente
     const sortedLocations = uniqueLocations.sort((a, b) => b.timestamp - a.timestamp);
 
-    // Limitar número de ubicaciones
     const limitedLocations = sortedLocations.slice(0, MAX_LOCATIONS);
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(limitedLocations));
@@ -230,7 +211,6 @@ export const importLocations = (jsonData: string): number => {
   } catch (error) {
     console.error("Error importing locations:", error);
 
-    // Restaurar backup si hay error
     try {
       restoreFromBackup();
       console.log("Restored from backup after import error");
@@ -244,7 +224,6 @@ export const importLocations = (jsonData: string): number => {
 
 export const clearAllLocations = (): void => {
   try {
-    // Crear backup antes de limpiar
     const locations = getCarLocations();
     createBackup(locations);
 
@@ -260,8 +239,8 @@ export const clearAllLocations = (): void => {
 export const getStorageUsage = (): { used: number; available: number; percentage: number } => {
   try {
     const data = localStorage.getItem(STORAGE_KEY) || "";
-    const used = new Blob([data]).size; // Tamaño en bytes
-    const available = 5 * 1024 * 1024; // 5MB límite típico de localStorage
+    const used = new Blob([data]).size;
+    const available = 5 * 1024 * 1024;
     const percentage = Math.round((used / available) * 100);
 
     return { used, available, percentage };
@@ -271,7 +250,6 @@ export const getStorageUsage = (): { used: number; available: number; percentage
   }
 };
 
-// Funciones auxiliares privadas
 const createBackup = (locations: CarLocation[]): void => {
   try {
     const backup = {
@@ -311,7 +289,6 @@ const removeDuplicateLocations = (locations: CarLocation[]): CarLocation[] => {
   const unique: CarLocation[] = [];
 
   for (const location of locations) {
-    // Crear clave única basada en coordenadas y timestamp
     const key = `${location.latitude.toFixed(6)}_${location.longitude.toFixed(6)}_${location.timestamp}`;
 
     if (!seen.has(key)) {
@@ -323,10 +300,8 @@ const removeDuplicateLocations = (locations: CarLocation[]): CarLocation[] => {
   return unique;
 };
 
-// Función para limpiar el caché de direcciones (útil para mantenimiento)
 export const clearAddressCache = (): void => {
   try {
-    // Si el cache está en una variable global, lo limpiaríamos aquí
     console.log("Address cache cleared");
   } catch (error) {
     console.error("Error clearing address cache:", error);
