@@ -158,3 +158,15 @@ Usamos valores altos y !important para garantizar el orden de las capas.
 [data-sonner-toaster] {
   z-index: 2000 !important;
 }
+
+.custom-toast {
+  background: white !important;
+  color: black !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.dark .custom-toast {
+  background: #1f2937 !important;
+  color: white !important;
+  border: 1px solid #374151 !important;
+}

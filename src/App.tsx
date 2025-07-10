@@ -708,14 +708,20 @@ function AppContent() {
       <Toaster
         position="top-center"
         expand={true}
-        richColors={true}
+        richColors={false}
         toastOptions={{
           duration: 4000,
           style: {
-            background: "hsl(var(--background))",
-            color: "hsl(var(--foreground))",
-            border: "1px solid hsl(var(--border))",
+            background: "white",
+            color: "black",
+            border: "1px solid #e5e7eb",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            padding: "12px 16px",
+            fontSize: "14px",
+            fontWeight: "500",
           },
+          className: "custom-toast", // Para CSS personalizado
         }}
       />
     </ThemeProvider>

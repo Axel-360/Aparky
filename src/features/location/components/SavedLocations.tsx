@@ -631,7 +631,7 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
       await new Promise((resolve) => setTimeout(resolve, 500));
       deleteCarLocation(deleteDialog.location.id);
       onLocationDeleted(deleteDialog.location.id);
-      toast.success("Ubicación eliminada correctamente.");
+      // toast.success("Ubicación eliminada correctamente.");
       setDeleteDialog({
         isOpen: false,
         location: null,

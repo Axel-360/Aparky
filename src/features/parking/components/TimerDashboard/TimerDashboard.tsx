@@ -234,7 +234,7 @@ const TimerDashboard: React.FC<TimerDashboardProps> = ({ locations, onLocationUp
 
     // 🔧 MEJORADO: Toast con información completa de la ubicación
     const displayName = location?.note || location?.address || `Ubicación ${location?.id}`;
-    toast.info(`⏹️ Timer cancelado para: ${displayName}`, {
+    toast.success(`⏰ Temporizador cancelado para: ${displayName}`, {
       duration: 4000,
     });
   };

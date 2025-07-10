@@ -106,8 +106,6 @@ export const useAppData = (
             // No fallar por esto
           }
         }
-
-        toast.success("📍 Ubicación guardada");
       } catch (error) {
         console.error("❌ Error saving location:", error);
         toast.error("Error al guardar la ubicación");
@@ -142,7 +140,7 @@ export const useAppData = (
           }
         }
 
-        toast.success("Ubicación actualizada");
+        // toast.success("Ubicación actualizada");
       } catch (error) {
         console.error("❌ Error updating location:", error);
         toast.error("Error al actualizar la ubicación");
@@ -295,7 +293,7 @@ export const useAppData = (
         // Actualizar ubicación
         await handleLocationUpdate(locationId, updates);
 
-        toast.success("Timer cancelado");
+        toast.success("⏰ Temporizador cancelado");
         console.log("✅ Timer cancelado exitosamente");
       } catch (error) {
         console.error("❌ Error cancelando timer:", error);

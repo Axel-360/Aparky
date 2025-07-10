@@ -118,13 +118,6 @@ export default defineConfig({
             url: "/?action=search",
             icons: [{ src: "/icons/pwa-192x192.png", sizes: "192x192" }],
           },
-          {
-            name: "Test Notificaciones",
-            short_name: "Test",
-            description: "Probar sistema de notificaciones",
-            url: "/?action=test-notifications",
-            icons: [{ src: "/icons/pwa-192x192.png", sizes: "192x192" }],
-          },
         ],
 
         screenshots: [
