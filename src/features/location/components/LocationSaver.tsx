@@ -23,6 +23,7 @@ import { PhotoCapture } from "../../photo";
 import { ParkingTimer } from "../../parking";
 import { UnifiedMap } from "./UnifiedMap";
 import type { CarLocation } from "../../../types/location";
+import { LocationUtils } from "@/utils";
 
 interface LocationSaverProps {
   onLocationSaved: (location: CarLocation) => void;
@@ -112,25 +113,16 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     const COOLDOWN = 5 * 60 * 1000;
     const MIN_DISTANCE = 50;
 
-    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-      const R = 6371e3;
-      const φ1 = (lat1 * Math.PI) / 180;
-      const φ2 = (lat2 * Math.PI) / 180;
-      const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-      const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-      return R * c;
-    };
-
     if (autoSave && latitude && longitude && !saving && isOnline && now - lastAutoSave > COOLDOWN) {
       let shouldAutoSave = true;
 
       if (lastSavedLocation) {
-        const distance = calculateDistance(lastSavedLocation[0], lastSavedLocation[1], latitude, longitude);
-
+        const distance = LocationUtils.calculateDistance(
+          lastSavedLocation[0],
+          lastSavedLocation[1],
+          latitude,
+          longitude
+        );
         shouldAutoSave = distance >= MIN_DISTANCE;
 
         if (process.env.NODE_ENV === "development") {
@@ -174,17 +166,11 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     setIsGettingAddress(true);
     try {
       await new Promise((resolve) => setTimeout(resolve, 300));
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        { headers: { "User-Agent": "CarLocationApp/1.0" } }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setAddress(data.display_name || "Dirección no disponible");
-      }
+      const address = await LocationUtils.reverseGeocode(lat, lng);
+      setAddress(address || "Dirección no disponible");
     } catch (error) {
       console.error("Error getting address:", error);
+      setAddress("Error al obtener dirección");
     } finally {
       setIsGettingAddress(false);
     }
@@ -214,7 +200,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
       }, 100);
 
       const newLocation: CarLocation = {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: LocationUtils.generateLocationId(),
         latitude: finalLat,
         longitude: finalLng,
         address: address || undefined,
@@ -534,18 +520,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
               <div className="text-xs opacity-75">
                 Distancia:{" "}
                 {Math.round(
-                  (() => {
-                    const R = 6371e3;
-                    const φ1 = (lastSavedLocation[0] * Math.PI) / 180;
-                    const φ2 = (latitude * Math.PI) / 180;
-                    const Δφ = ((latitude - lastSavedLocation[0]) * Math.PI) / 180;
-                    const Δλ = ((longitude - lastSavedLocation[1]) * Math.PI) / 180;
-                    const a =
-                      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    return R * c;
-                  })()
+                  LocationUtils.calculateDistance(lastSavedLocation[0], lastSavedLocation[1], latitude, longitude)
                 )}
                 m desde último guardado (mín: 50m)
               </div>

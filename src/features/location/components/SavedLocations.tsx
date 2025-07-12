@@ -3,7 +3,6 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import type { CarLocation, DateFilter } from "@/types/location";
 import { deleteCarLocation, updateCarLocation } from "@/utils/storage";
 import { filterLocationsByDate } from "@/utils/stats";
-import { copyToClipboard } from "@/utils/helpers";
 import { timerManager } from "@/utils/timerManager";
 import SearchFilter from "./SearchFilter";
 import EditLocationDialog from "./EditLocationDialog";
@@ -48,6 +47,8 @@ import {
   Edit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocationManager } from "@/hooks/useLocationManager";
+import { Formatters } from "@/utils/formatters";
 
 interface SavedLocationsProps {
   locations: CarLocation[];
@@ -190,17 +191,19 @@ const LocationCard = React.memo<{
   location: CarLocation;
   isLatest: boolean;
   timerTimeLeft: string;
+  locationManager: ReturnType<typeof useLocationManager>;
   onLocationDeleted: (location: CarLocation) => void;
   onLocationSelected: (location: CarLocation) => void;
   onNavigateToLocation?: (location: CarLocation) => void;
   onTimerExtend: (locationId: string, minutes: number) => void;
   onTimerCancel: (locationId: string) => void;
-  onLocationUpdated?: (locationId: string, updates: Partial<CarLocation>) => void; // ← NUEVO
+  onLocationUpdated?: (locationId: string, updates: Partial<CarLocation>) => void;
 }>(
   ({
     location,
     isLatest,
     timerTimeLeft,
+    locationManager,
     onLocationDeleted,
     onLocationSelected,
     onNavigateToLocation,
@@ -308,34 +311,6 @@ const LocationCard = React.memo<{
       }
     }, []);
 
-    const openInMaps = useCallback((location: CarLocation) => {
-      const query = location.address
-        ? encodeURIComponent(location.address)
-        : `${location.latitude},${location.longitude}`;
-      window.open(`https://maps.google.com/?q=${query}`, "_blank", "noopener,noreferrer");
-    }, []);
-
-    const shareLocation = useCallback(async (location: CarLocation) => {
-      const shareData = {
-        title: "Ubicación de mi coche",
-        text: `Mi coche está aparcado aquí. ${location.note ? `Nota: "${location.note}"` : ""}`,
-        url: `https://maps.google.com/?q=${location.latitude},${location.longitude}`,
-      };
-
-      if (navigator.share) {
-        try {
-          await navigator.share(shareData);
-          toast.success("Ubicación compartida.");
-        } catch (err) {
-          console.log("Error al compartir:", err);
-        }
-      } else {
-        copyToClipboard(shareData.url)
-          .then(() => toast.success("Enlace copiado al portapapeles."))
-          .catch(() => toast.error("No se pudo copiar el enlace."));
-      }
-    }, []);
-
     const handleDeleteClick = useCallback(() => {
       onLocationDeleted(location);
     }, [onLocationDeleted, location]);
@@ -349,12 +324,12 @@ const LocationCard = React.memo<{
     }, [onNavigateToLocation, location]);
 
     const handleOpenMaps = useCallback(() => {
-      openInMaps(location);
-    }, [openInMaps, location]);
+      locationManager.openInMaps(location);
+    }, [locationManager, location]);
 
     const handleShare = useCallback(() => {
-      shareLocation(location);
-    }, [shareLocation, location]);
+      locationManager.shareLocation(location);
+    }, [locationManager, location]);
 
     const handleTimerExtend30 = useCallback(() => {
       onTimerExtend(location.id, 30);
@@ -443,7 +418,7 @@ const LocationCard = React.memo<{
                 </p>
               )}
               <div className="text-xs text-muted-foreground">
-                {new Date(location.timestamp).toLocaleString()} ({formatRelativeTime(location.timestamp)})
+                {Formatters.formatDateTime(location.timestamp).full} ({formatRelativeTime(location.timestamp)})
               </div>
               <div className="flex flex-wrap gap-2 items-center">
                 <Badge variant="outline" className="flex items-center gap-1.5">
@@ -549,6 +524,8 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
     location: null,
     isDeleting: false,
   });
+
+  const locationManager = useLocationManager(locations, onLocationUpdated, onLocationDeleted, onLocationSelected);
 
   const getTimeLeft = useCallback((expiryTime: number): string => {
     const now = Date.now();
@@ -742,6 +719,7 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
                 location={location}
                 isLatest={isLatest}
                 timerTimeLeft={timeLeftText}
+                locationManager={locationManager}
                 onLocationDeleted={handleDeleteClick}
                 onLocationSelected={onLocationSelected}
                 onNavigateToLocation={onNavigateToLocation}

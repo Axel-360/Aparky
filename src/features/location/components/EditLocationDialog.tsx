@@ -28,6 +28,7 @@ import { Edit, Save, X, Clock, Camera, Info, Target, Navigation, RefreshCw, Aler
 import { cn } from "@/lib/utils";
 import type { CarLocation } from "@/types/location";
 import "leaflet/dist/leaflet.css";
+import { LocationUtils } from "@/utils";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -131,17 +132,8 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
     setIsGettingAddress(true);
     try {
       await new Promise((resolve) => setTimeout(resolve, 500)); // Rate limiting
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        { headers: { "User-Agent": "CarLocationApp/1.0" } }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setNewAddress(data.display_name || "Dirección no disponible");
-      } else {
-        setNewAddress("No se pudo obtener la dirección");
-      }
+      const address = await LocationUtils.reverseGeocode(lat, lng);
+      setNewAddress(address || "Dirección no disponible");
     } catch (error) {
       console.error("Error getting address:", error);
       setNewAddress("Error al obtener dirección");

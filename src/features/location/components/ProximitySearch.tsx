@@ -13,6 +13,7 @@ import {
   AlertTitle,
 } from "@/shared/ui";
 import { Target, Loader2, Search, Map, Eye, Navigation, AlertTriangle, PartyPopper } from "lucide-react";
+import { LocationUtils, Formatters } from "@/utils";
 
 interface ProximitySearchProps {
   locations: CarLocation[];
@@ -31,22 +32,6 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
   const [searchRadius, setSearchRadius] = useState<number>(500);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371e3;
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  const formatDistance = (distance: number): string => {
-    if (distance < 1000) return `${Math.round(distance)}m`;
-    return `${(distance / 1000).toFixed(1)}km`;
-  };
 
   const getCurrentLocation = async () => {
     setLoading(true);
@@ -76,14 +61,14 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
     const locationsWithDistance = locations
       .map((location) => ({
         ...location,
-        distance: calculateDistance(
+        distance: LocationUtils.calculateDistance(
           currentLocation.latitude,
           currentLocation.longitude,
           location.latitude,
           location.longitude
         ),
         isNearby:
-          calculateDistance(
+          LocationUtils.calculateDistance(
             currentLocation.latitude,
             currentLocation.longitude,
             location.latitude,
@@ -170,14 +155,15 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
                   <Search className="h-4 w-4" />
                   <AlertTitle>No se encontraron resultados</AlertTitle>
                   <AlertDescription>
-                    No hay ubicaciones en un radio de {formatDistance(searchRadius)}. Prueba aumentando el radio.
+                    No hay ubicaciones en un radio de {Formatters.formatDistance(searchRadius)}. Prueba aumentando el
+                    radio.
                     {closestLocation && (
                       <Button
                         variant="link"
                         className="p-0 h-auto mt-2"
                         onClick={() => onLocationSelect(closestLocation)}
                       >
-                        Ver la más cercana a {formatDistance(closestLocation.distance)}.
+                        Ver la más cercana a {Formatters.formatDistance(closestLocation.distance)}.
                       </Button>
                     )}
                   </AlertDescription>
@@ -199,7 +185,7 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-bold bg-primary text-primary-foreground px-2 py-1 rounded-md">
-                                {formatDistance(location.distance)}
+                                {Formatters.formatDistance(location.distance)}
                               </span>
                               <p className="text-sm text-muted-foreground">
                                 {new Date(location.timestamp).toLocaleDateString()}
