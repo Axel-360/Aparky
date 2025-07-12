@@ -49,6 +49,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLocationManager } from "@/hooks/useLocationManager";
 import { Formatters } from "@/utils/formatters";
+import { IconButton, StatusBadge } from "@/shared/components";
 
 interface SavedLocationsProps {
   locations: CarLocation[];
@@ -360,55 +361,36 @@ const LocationCard = React.memo<{
             <div className="md:col-span-1 space-y-3">
               <PhotoGallery photos={location.photos || []} locationNote={location.note} />
 
-              {/* BOTONES ACTUALIZADOS CON EDITAR */}
+              {/* BOTONES SIMPLIFICADOS CON COMPONENTES REUTILIZABLES */}
               <div className="flex justify-around items-center bg-muted/50 p-1 rounded-md">
-                {/*  Botón de editar como PRIMERO */}
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <IconButton
+                  icon={Edit}
                   onClick={handleEditClick}
-                  title="Editar ubicación"
-                  className="hover:bg-primary/10"
-                >
-                  <Edit className="w-4 h-4" />
-                </Button>
-
-                <Button variant="ghost" size="icon" onClick={handleLocationSelect} title="Ver en mapa">
-                  <Eye className="w-5 h-5" />
-                </Button>
-
-                {onNavigateToLocation && (
-                  <Button variant="ghost" size="icon" onClick={handleNavigateClick} title="Navegar">
-                    <Navigation className="w-5 h-5" />
-                  </Button>
-                )}
-
-                <Button variant="ghost" size="icon" onClick={handleOpenMaps} title="Abrir en Google Maps">
-                  <MapIcon className="w-5 h-5" />
-                </Button>
-
-                <Button variant="ghost" size="icon" onClick={handleShare} title="Compartir">
-                  <Share2 className="w-5 h-5" />
-                </Button>
-
-                <Button
-                  variant="ghost"
+                  tooltip="Editar ubicación"
                   size="icon"
+                  className="hover:bg-primary/10"
+                />
+                <IconButton icon={Eye} onClick={handleLocationSelect} tooltip="Ver en mapa" size="icon" />
+                {onNavigateToLocation && (
+                  <IconButton icon={Navigation} onClick={handleNavigateClick} tooltip="Navegar" size="icon" />
+                )}
+                <IconButton icon={MapIcon} onClick={handleOpenMaps} tooltip="Abrir en Google Maps" size="icon" />
+                <IconButton icon={Share2} onClick={handleShare} tooltip="Compartir" size="icon" />
+                <IconButton
+                  icon={Trash2}
                   onClick={handleDeleteClick}
-                  title="Eliminar"
-                  className="hover:bg-destructive/10"
-                >
-                  <Trash2 className="w-5 h-5 text-destructive" />
-                </Button>
+                  tooltip="Eliminar"
+                  size="icon"
+                  className="hover:bg-destructive/10 text-destructive hover:text-destructive"
+                />
               </div>
             </div>
 
             <div className="md:col-span-2 space-y-3">
               {isLatest && (
-                <Badge>
-                  <Star className="w-3.5 h-3.5 mr-1.5" />
+                <StatusBadge status="info" icon={Star}>
                   Ubicación más reciente
-                </Badge>
+                </StatusBadge>
               )}
               {location.note && <p className="font-semibold text-lg">"{location.note}"</p>}
               {location.address && (
@@ -432,14 +414,10 @@ const LocationCard = React.memo<{
                 )}
 
                 {/* Badge de tipo de ubicación */}
-                <Badge
-                  variant={locationTypeInfo.badgeVariant}
-                  className={cn("flex items-center gap-1.5", locationTypeInfo.badgeColor)}
-                  title={locationTypeInfo.description}
-                >
+                <StatusBadge status="neutral" className={locationTypeInfo.badgeColor}>
                   {locationTypeInfo.icon}
                   {locationTypeInfo.label}
-                </Badge>
+                </StatusBadge>
               </div>
 
               {timerStatus !== "inactive" && <Separator />}
@@ -459,14 +437,12 @@ const LocationCard = React.memo<{
                   </Alert>
                   {timerStatus !== "expired" && (
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={handleTimerExtend30}>
-                        <Plus className="w-4 h-4 mr-1" />
+                      <IconButton icon={Plus} variant="outline" size="sm" onClick={handleTimerExtend30}>
                         30min
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleTimerExtend60}>
-                        <Plus className="w-4 h-4 mr-1" />
+                      </IconButton>
+                      <IconButton icon={Plus} variant="outline" size="sm" onClick={handleTimerExtend60}>
                         1h
-                      </Button>
+                      </IconButton>
                       <Button
                         size="sm"
                         variant="ghost"

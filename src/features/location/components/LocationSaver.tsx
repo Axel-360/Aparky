@@ -1,6 +1,6 @@
 //src/features/location/components/LocationSaver.tsx
 import React, { useState, useEffect } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Alert, AlertDescription, Badge } from "@/shared/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Alert, AlertDescription } from "@/shared/ui";
 import { toast } from "sonner";
 import {
   MapPin,
@@ -24,6 +24,7 @@ import { ParkingTimer } from "../../parking";
 import { UnifiedMap } from "./UnifiedMap";
 import type { CarLocation } from "../../../types/location";
 import { LocationUtils } from "@/utils";
+import { IconButton, StatusBadge } from "@/shared/components";
 
 interface LocationSaverProps {
   onLocationSaved: (location: CarLocation) => void;
@@ -362,10 +363,9 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
 
             {/* Indicador de auto-save */}
             {autoSave && (
-              <Badge variant="outline" className="text-xs flex items-center gap-1">
-                <Zap className="w-3 h-3" />
+              <StatusBadge status="info" icon={Zap} size="sm">
                 Auto
-              </Badge>
+              </StatusBadge>
             )}
           </div>
         </div>
@@ -427,29 +427,21 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
 
             <div className="flex gap-1">
               {!loading && (
-                <Button
+                <IconButton
+                  icon={showManualMode ? Target : Navigation}
                   variant={showManualMode ? "default" : "outline"}
                   size="sm"
                   onClick={toggleManualMode}
                   className="text-xs h-7"
                 >
-                  {showManualMode ? (
-                    <>
-                      <Target className="w-3 h-3 mr-1" />
-                      Manual
-                    </>
-                  ) : (
-                    <>
-                      <Navigation className="w-3 h-3 mr-1" />
-                      GPS
-                    </>
-                  )}
-                </Button>
+                  {showManualMode ? "Manual" : "GPS"}
+                </IconButton>
               )}
 
               {/* Botón de forzar GPS */}
               {!showManualMode && (
-                <Button
+                <IconButton
+                  icon={loading ? Loader2 : Navigation}
                   variant="outline"
                   size="sm"
                   onClick={() => {
@@ -458,9 +450,8 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
                   }}
                   disabled={loading}
                   className="text-xs h-7"
-                >
-                  {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Navigation className="w-3 h-3" />}
-                </Button>
+                  loading={loading}
+                />
               )}
             </div>
           </div>
