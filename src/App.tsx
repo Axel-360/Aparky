@@ -324,6 +324,9 @@ function AppContent() {
       onLocationDeleted: handleLocationDeleted,
       onLocationSelected: handleLocationSelected,
       onNavigateToLocation: handleNavigateToLocation,
+      onShowOnMap: handleShowOnMapWithRef,
+      currentView,
+      onViewChange: setCurrentView,
       sortBy: preferences.sortBy || "date",
       showAll: preferences.showAll || true,
       onSortChange: updateSortPreference,
@@ -366,6 +369,9 @@ function AppContent() {
       <>
         {currentView === "map" ? (
           <div className="space-y-6">
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold flex items-center gap-2">🗺️ Mapa de ubicaciones</h2>
+            </div>
             <div ref={mapSectionRef} className="rounded-lg overflow-hidden border">
               <UnifiedMap
                 center={mapCenter}

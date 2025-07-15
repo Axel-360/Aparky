@@ -62,7 +62,10 @@ interface SavedLocationsProps {
   onShowAllChange: (showAll: boolean) => void;
   onTimerExtend: (locationId: string, minutes: number) => void;
   onTimerCancel: (locationId: string) => void;
-  onLocationUpdated?: (locationId: string, updates: Partial<CarLocation>) => void; // ← NUEVO PROP
+  onLocationUpdated?: (locationId: string, updates: Partial<CarLocation>) => void;
+  onShowOnMap?: (locations: CarLocation[]) => void;
+  currentView?: "map" | "proximity";
+  onViewChange?: (view: "map" | "proximity") => void;
 }
 
 const PhotoGallery = React.memo<{
@@ -199,6 +202,9 @@ const LocationCard = React.memo<{
   onTimerExtend: (locationId: string, minutes: number) => void;
   onTimerCancel: (locationId: string) => void;
   onLocationUpdated?: (locationId: string, updates: Partial<CarLocation>) => void;
+  onShowOnMap?: (locations: CarLocation[]) => void;
+  currentView?: "map" | "proximity";
+  onViewChange?: (view: "map" | "proximity") => void;
 }>(
   ({
     location,
@@ -211,6 +217,9 @@ const LocationCard = React.memo<{
     onTimerExtend,
     onTimerCancel,
     onLocationUpdated,
+    onShowOnMap,
+    currentView,
+    onViewChange,
   }) => {
     const [showEditDialog, setShowEditDialog] = useState(false);
 
@@ -318,7 +327,15 @@ const LocationCard = React.memo<{
 
     const handleLocationSelect = useCallback(() => {
       onLocationSelected(location);
-    }, [onLocationSelected, location]);
+      // Cambiar a vista de mapa si no estamos ya ahí
+      if (currentView !== "map" && onViewChange) {
+        onViewChange("map");
+      }
+      // Usar la función de scroll que ya existe
+      if (onShowOnMap) {
+        onShowOnMap([location]);
+      }
+    }, [onLocationSelected, location, currentView, onViewChange, onShowOnMap]);
 
     const handleNavigateClick = useCallback(() => {
       onNavigateToLocation?.(location);
@@ -486,6 +503,9 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
   onTimerExtend,
   onTimerCancel,
   onLocationUpdated,
+  onShowOnMap,
+  currentView,
+  onViewChange,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -702,6 +722,9 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
                 onTimerExtend={onTimerExtend}
                 onTimerCancel={onTimerCancel}
                 onLocationUpdated={onLocationUpdated}
+                onShowOnMap={onShowOnMap}
+                currentView={currentView}
+                onViewChange={onViewChange}
               />
             );
           })}
