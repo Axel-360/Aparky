@@ -396,6 +396,7 @@ function AppContent() {
             onShowOnMap={handleShowOnMapWithRef}
             currentView={currentView}
             onViewChange={setCurrentView}
+            currentUserLocation={geoCurrentLocation}
           />
         )}
         <SavedLocations {...savedLocationsProps} />
