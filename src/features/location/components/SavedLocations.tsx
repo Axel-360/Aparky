@@ -326,14 +326,23 @@ const LocationCard = React.memo<{
     }, [onLocationDeleted, location]);
 
     const handleLocationSelect = useCallback(() => {
-      onLocationSelected(location);
-      // Cambiar a vista de mapa si no estamos ya ahí
       if (currentView !== "map" && onViewChange) {
         onViewChange("map");
-      }
-      // Usar la función de scroll que ya existe
-      if (onShowOnMap) {
-        onShowOnMap([location]);
+
+        // Doble requestAnimationFrame para asegurar que todo esté renderizado
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            onLocationSelected(location);
+            if (onShowOnMap) {
+              onShowOnMap([location]);
+            }
+          });
+        });
+      } else {
+        onLocationSelected(location);
+        if (onShowOnMap) {
+          onShowOnMap([location]);
+        }
       }
     }, [onLocationSelected, location, currentView, onViewChange, onShowOnMap]);
 

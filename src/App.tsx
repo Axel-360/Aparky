@@ -369,10 +369,10 @@ function AppContent() {
       <>
         {currentView === "map" ? (
           <div className="space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">🗺️ Mapa de ubicaciones</h2>
-            </div>
             <div ref={mapSectionRef} className="rounded-lg overflow-hidden border">
+              <div className="space-y-4">
+                <h2 className="font-bold flex items-center gap-2">🗺️ Mapa de ubicaciones</h2>
+              </div>
               <UnifiedMap
                 center={mapCenter}
                 zoom={mapZoom}
@@ -394,6 +394,8 @@ function AppContent() {
             locations={locations}
             onLocationSelect={handleLocationSelected}
             onShowOnMap={handleShowOnMapWithRef}
+            currentView={currentView}
+            onViewChange={setCurrentView}
           />
         )}
         <SavedLocations {...savedLocationsProps} />

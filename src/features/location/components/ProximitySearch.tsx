@@ -1,5 +1,5 @@
 // src/features/location/components/ProximitySearch.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type { CarLocation } from "@/types/location";
 import {
   Card,
@@ -14,11 +14,14 @@ import {
 } from "@/shared/ui";
 import { Target, Loader2, Search, Map, Eye, Navigation, AlertTriangle, PartyPopper } from "lucide-react";
 import { LocationUtils, Formatters } from "@/utils";
+import { toast } from "sonner";
 
 interface ProximitySearchProps {
   locations: CarLocation[];
   onLocationSelect: (location: CarLocation) => void;
   onShowOnMap: (locations: CarLocation[]) => void;
+  currentView?: "map" | "proximity";
+  onViewChange?: (view: "map" | "proximity") => void;
 }
 
 interface LocationWithDistance extends CarLocation {
@@ -26,14 +29,21 @@ interface LocationWithDistance extends CarLocation {
   isNearby: boolean;
 }
 
-const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocationSelect, onShowOnMap }) => {
+const ProximitySearch: React.FC<ProximitySearchProps> = ({
+  locations,
+  onLocationSelect,
+  onShowOnMap,
+  currentView,
+  onViewChange,
+}) => {
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [nearbyLocations, setNearbyLocations] = useState<LocationWithDistance[]>([]);
   const [searchRadius, setSearchRadius] = useState<number>(500);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getCurrentLocation = async () => {
+  // Función para obtener ubicación actual
+  const getCurrentLocation = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -51,8 +61,9 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  // Calcular ubicaciones cercanas
   useEffect(() => {
     if (!currentLocation || locations.length === 0) {
       setNearbyLocations([]);
@@ -79,6 +90,65 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
     setNearbyLocations(locationsWithDistance);
   }, [currentLocation, locations, searchRadius]);
 
+  // Derivar valores después del useEffect
+  const nearbyFound = nearbyLocations.filter((loc) => loc.isNearby);
+  const closestLocation = nearbyLocations[0];
+
+  // Función para mostrar ubicación individual con scroll
+  const handleShowSingleLocation = useCallback(
+    (location: CarLocation) => {
+      if (currentView !== "map" && onViewChange) {
+        onViewChange("map");
+
+        // Esperar a que React renderice antes de hacer scroll
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            onLocationSelect(location);
+            if (onShowOnMap) {
+              onShowOnMap([location]);
+            }
+          });
+        });
+      } else {
+        onLocationSelect(location);
+        if (onShowOnMap) {
+          onShowOnMap([location]);
+        }
+      }
+    },
+    [currentView, onViewChange, onLocationSelect, onShowOnMap]
+  );
+
+  // Función para mostrar múltiples ubicaciones con scroll
+  const handleShowMultipleLocations = useCallback(() => {
+    if (currentView !== "map" && onViewChange) {
+      onViewChange("map");
+
+      // Esperar a que React renderice antes de hacer scroll
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (onShowOnMap) {
+            onShowOnMap(nearbyFound);
+          }
+        });
+      });
+    } else {
+      if (onShowOnMap) {
+        onShowOnMap(nearbyFound);
+      }
+    }
+  }, [currentView, onViewChange, onShowOnMap, nearbyFound]);
+
+  // Función para actualizar ubicación con feedback
+  const handleUpdateLocation = useCallback(async () => {
+    try {
+      await getCurrentLocation();
+      toast.success("Ubicación actualizada correctamente");
+    } catch (error) {
+      toast.error("Error al actualizar la ubicación");
+    }
+  }, [getCurrentLocation]);
+
   const radiusOptions = [
     { label: "100m", value: 100 },
     { label: "250m", value: 250 },
@@ -87,9 +157,6 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
     { label: "2km", value: 2000 },
     { label: "5km", value: 5000 },
   ];
-
-  const nearbyFound = nearbyLocations.filter((loc) => loc.isNearby);
-  const closestLocation = nearbyLocations[0];
 
   return (
     <Card>
@@ -107,13 +174,11 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
             <Button onClick={getCurrentLocation} disabled={loading}>
               {loading ? (
                 <>
-                  {" "}
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Obteniendo...{" "}
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Obteniendo...
                 </>
               ) : (
                 <>
-                  {" "}
-                  <Target className="mr-2 h-4 w-4" /> Obtener mi Ubicación{" "}
+                  <Target className="mr-2 h-4 w-4" /> Obtener mi Ubicación
                 </>
               )}
             </Button>
@@ -126,7 +191,7 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Radius Selector */}
+            {/* Selector de radio */}
             <div>
               <label className="text-sm font-medium mb-2 block">Radio de búsqueda:</label>
               <div className="flex flex-wrap gap-2">
@@ -143,7 +208,7 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
               </div>
             </div>
 
-            {/* Results */}
+            {/* Resultados */}
             <div className="space-y-4">
               {locations.length === 0 ? (
                 <Alert>
@@ -161,7 +226,7 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
                       <Button
                         variant="link"
                         className="p-0 h-auto mt-2"
-                        onClick={() => onLocationSelect(closestLocation)}
+                        onClick={() => handleShowSingleLocation(closestLocation)}
                       >
                         Ver la más cercana a {Formatters.formatDistance(closestLocation.distance)}.
                       </Button>
@@ -174,7 +239,7 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
                     <p className="text-sm text-muted-foreground">
                       <span className="font-bold text-foreground">{nearbyFound.length}</span> ubicaciones encontradas.
                     </p>
-                    <Button variant="secondary" size="sm" onClick={() => onShowOnMap(nearbyFound)}>
+                    <Button variant="secondary" size="sm" onClick={handleShowMultipleLocations}>
                       <Map className="mr-2 h-4 w-4" /> Ver en mapa
                     </Button>
                   </div>
@@ -206,7 +271,7 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
                             <Button
                               size="icon"
                               variant="outline"
-                              onClick={() => onLocationSelect(location)}
+                              onClick={() => handleShowSingleLocation(location)}
                               title="Ver en mapa"
                             >
                               <Eye className="h-4 w-4" />
@@ -221,7 +286,7 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
                                   "noopener,noreferrer"
                                 )
                               }
-                              title="Navegar"
+                              title="Navegar con Google Maps"
                             >
                               <Navigation className="h-4 w-4" />
                             </Button>
@@ -233,16 +298,26 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({ locations, onLocation
                 </>
               )}
             </div>
-            <Button variant="outline" onClick={getCurrentLocation} disabled={loading} className="w-full">
+
+            {/* Botón para actualizar ubicación */}
+            <Button variant="outline" onClick={handleUpdateLocation} disabled={loading} className="w-full">
               {loading ? (
                 <>
-                  {" "}
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Actualizando...{" "}
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Actualizando...
                 </>
               ) : (
-                "🔄 Actualizar mi Ubicación"
+                <>🔄 Actualizar mi Ubicación</>
               )}
             </Button>
+
+            {/* Botón adicional para ver todas las ubicaciones si no hay cercanas */}
+            {nearbyFound.length === 0 && nearbyLocations.length > 0 && (
+              <Button variant="outline" onClick={() => handleShowMultipleLocations()} className="w-full">
+                <Map className="mr-2 h-4 w-4" />
+                Ver todas mis ubicaciones en el mapa
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
