@@ -1,5 +1,5 @@
 //src/features/location/components/LocationSaver.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // ← Añadir useCallback
 import { Button, Card, CardContent, CardHeader, CardTitle, Alert, AlertDescription } from "@/shared/ui";
 import { toast } from "sonner";
 import {
@@ -17,6 +17,7 @@ import {
   Euro,
   Wifi,
   WifiOff,
+  RotateCcw, // ← Añadir este import
 } from "lucide-react";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { PhotoCapture } from "../../photo";
@@ -85,6 +86,19 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
 
   const [justSaved, setJustSaved] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
+
+  // 🔥 NUEVO: Función para resetear el formulario completamente
+  const resetFormFields = useCallback(() => {
+    setNote("");
+    setPhotos([]);
+    setParkingType("Calle");
+    setCost("");
+    setExpiryTime(undefined);
+    setReminderMinutes(defaultReminderMinutes);
+    setManualLocation(null);
+    setShowManualMode(false);
+    console.log("✅ Formulario reseteado completamente");
+  }, [defaultReminderMinutes]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -177,6 +191,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     }
   };
 
+  // 🔥 MODIFICADO: Solo cambio en el reset después de guardar
   const handleSaveLocation = async (isAutoSave: boolean = false) => {
     const finalLat = manualLocation ? manualLocation[0] : latitude;
     const finalLng = manualLocation ? manualLocation[1] : longitude;
@@ -226,19 +241,9 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 3000);
 
+      // 🔥 CAMBIO PRINCIPAL: Reset completo para guardado manual
       if (!isAutoSave) {
-        if (smartFormMode === "simple") {
-          setNote("");
-          setPhotos([]);
-          setCost("");
-          setExpiryTime(undefined);
-        } else {
-          if (!note.includes("Nivel") && !note.includes("Plaza")) {
-            setNote("");
-          }
-        }
-        setManualLocation(null);
-        setShowManualMode(false);
+        resetFormFields(); // ← Usar la nueva función de reset
       }
 
       const emoji = isAutoSave ? "⚡" : manualLocation ? "🎯" : "📍";
@@ -421,8 +426,9 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h3 className="font-medium text-sm">Ubicación</h3>
-              <span className={`text-xs ${locationStatus.color}`}>{locationStatus.text}</span>
+              <StatusBadge status="info" className={`text-xs ${locationStatus.color}`}>
+                {locationStatus.text}
+              </StatusBadge>
             </div>
 
             <div className="flex gap-1">
@@ -617,6 +623,21 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
                 />
                 <Euro className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
+            </div>
+
+            {/* 🔥 NUEVO: Botón de reset manual solo en modo detallado */}
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetFormFields}
+                disabled={saving}
+                className="flex items-center gap-2 text-sm"
+                size="sm"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Limpiar formulario
+              </Button>
             </div>
           </div>
         )}
