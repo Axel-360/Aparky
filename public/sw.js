@@ -212,7 +212,7 @@ console.log("✅ SW: Service Worker limpio cargado (versión sin notificaciones)
 console.log("📦 SW: Cache configurado:", CACHE_NAME);
 console.log("🎯 SW: Funcionalidades:");
 console.log("  ✅ Cache de recursos estáticos");
-console.log("  ✅ Navegación offline");
+console.log("  ✅ Navegación sin conexión");
 console.log("  ✅ Gestión de versiones");
 console.log("  ✅ Limpieza automática de cache");
 console.log("  ❌ Sistema de notificaciones (eliminado)");

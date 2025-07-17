@@ -1,5 +1,5 @@
 //src/features/location/components/LocationSaver.tsx
-import React, { useState, useEffect, useCallback } from "react"; // ← Añadir useCallback
+import React, { useState, useEffect, useCallback } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Alert, AlertDescription } from "@/shared/ui";
 import { toast } from "sonner";
 import {
@@ -17,7 +17,7 @@ import {
   Euro,
   Wifi,
   WifiOff,
-  RotateCcw, // ← Añadir este import
+  RotateCcw,
 } from "lucide-react";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { PhotoCapture } from "../../photo";
@@ -87,7 +87,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
   const [justSaved, setJustSaved] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
 
-  // 🔥 NUEVO: Función para resetear el formulario completamente
+  // Función para resetear el formulario completamente
   const resetFormFields = useCallback(() => {
     setNote("");
     setPhotos([]);
@@ -170,13 +170,18 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
 
   useEffect(() => {
     const location = manualLocation || (latitude && longitude ? [latitude, longitude] : null);
-    if (location && isOnline) {
+    if (location) {
       getAddressFromCoordinates(location[0], location[1]);
     }
   }, [manualLocation, latitude, longitude, isOnline]);
 
+  // 🔥 MODIFICADA: Función para manejar direcciones sin conexión
   const getAddressFromCoordinates = async (lat: number, lng: number) => {
-    if (!isOnline) return;
+    if (!isOnline) {
+      // Sin conexión, usar coordenadas como dirección
+      setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      return;
+    }
 
     setIsGettingAddress(true);
     try {
@@ -185,13 +190,12 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
       setAddress(address || "Dirección no disponible");
     } catch (error) {
       console.error("Error getting address:", error);
-      setAddress("Error al obtener dirección");
+      setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`); // Fallback a coordenadas
     } finally {
       setIsGettingAddress(false);
     }
   };
 
-  // 🔥 MODIFICADO: Solo cambio en el reset después de guardar
   const handleSaveLocation = async (isAutoSave: boolean = false) => {
     const finalLat = manualLocation ? manualLocation[0] : latitude;
     const finalLng = manualLocation ? manualLocation[1] : longitude;
@@ -241,21 +245,32 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 3000);
 
-      // 🔥 CAMBIO PRINCIPAL: Reset completo para guardado manual
+      // Reset completo para guardado manual
       if (!isAutoSave) {
-        resetFormFields(); // ← Usar la nueva función de reset
+        resetFormFields();
       }
 
+      // 🔥 MODIFICADO: Toast con información de estado offline
       const emoji = isAutoSave ? "⚡" : manualLocation ? "🎯" : "📍";
       const message = isAutoSave
         ? "Ubicación guardada automáticamente"
         : manualLocation
-        ? "Ubicación manual guardada"
+        ? isOnline
+          ? "Ubicación manual guardada"
+          : "Ubicación manual guardada (sin conexión)"
         : "Ubicación GPS guardada";
 
       toast.success(`${emoji} ${message}`, {
         description: address ? `📍 ${address.split(",")[0]}` : undefined,
         duration: 4000,
+        action: !isOnline
+          ? {
+              label: "Se sincronizará",
+              onClick: () => {
+                toast.info("La ubicación se sincronizará cuando recuperes la conexión");
+              },
+            }
+          : undefined,
       });
     } catch (error) {
       console.error("Error saving location:", error);
@@ -331,10 +346,16 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
 
   const locationStatus = getLocationStatus();
 
+  // 🔥 MODIFICADA: Lógica canSave para permitir guardado offline manual
   const canSave = React.useMemo(() => {
     if (saving) return false;
 
-    if (!isOnline) return false;
+    // Permitir guardado offline para ubicaciones manuales
+    // Solo bloquear si no hay conexión Y es GPS (necesita direcciones)
+    if (!isOnline && !showManualMode) {
+      // Para GPS necesitamos conexión para geocoding
+      return false;
+    }
 
     if (showManualMode) {
       return manualLocation !== null;
@@ -625,7 +646,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
               </div>
             </div>
 
-            {/* 🔥 NUEVO: Botón de reset manual solo en modo detallado */}
+            {/* Botón de reset manual solo en modo detallado */}
             <div className="flex gap-2 pt-2">
               <Button
                 type="button"
@@ -659,6 +680,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
             />
           )}
 
+          {/* 🔥 MODIFICADO: Texto del botón con mejor manejo offline */}
           <div className="relative z-10 flex items-center justify-center gap-2">
             {loading ? (
               <>
@@ -675,10 +697,10 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
                 <CheckCircle className="w-5 h-5" />
                 ¡Guardado!
               </>
-            ) : !isOnline ? (
+            ) : !isOnline && !showManualMode ? (
               <>
                 <WifiOff className="w-5 h-5" />
-                Sin conexión
+                Sin conexión - Usa modo manual
               </>
             ) : error && !showManualMode ? (
               <>
@@ -696,19 +718,26 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
                 Esperando GPS...
               </>
             ) : (
-              <>💾 Guardar mi coche aquí</>
+              <>
+                💾 Guardar mi coche aquí
+                {!isOnline && showManualMode && <span className="text-xs opacity-75 ml-1">(sin conexión)</span>}
+              </>
             )}
           </div>
         </Button>
 
-        {/* Estado offline */}
+        {/* 🔥 MODIFICADO: Estado offline con mejor información */}
         {!isOnline && (
           <Alert className="animate-in slide-in-from-bottom-2">
             <WifiOff className="h-4 w-4" />
             <AlertDescription>
               <strong>Sin conexión a internet</strong>
               <br />
-              <span className="text-xs">La ubicación se guardará cuando recuperes la conexión</span>
+              <span className="text-xs">
+                {showManualMode
+                  ? "Puedes guardar manualmente sin conexión. Se sincronizará después."
+                  : "Para GPS necesitas conexión. Usa el modo manual para guardar sin conexión."}
+              </span>
             </AlertDescription>
           </Alert>
         )}

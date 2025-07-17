@@ -116,13 +116,13 @@ npm run preview
 
 - **LocalStorage**: Ubicaciones y preferencias
 - **IndexedDB**: Cola de notificaciones
-- **Cache**: Mapas y recursos offline
+- **Cache**: Mapas y recursos sin conexión
 
 ## 📊 **Performance**
 
 - ⚡ **Primera carga**: <2s
 - 🗺️ **Mapas**: Cache agresivo
-- 💾 **Offline**: Funcionalidad completa
+- 💾 **Sin conexión**: Funcionalidad completa
 - 🔄 **Sync**: Automática al reconectar
 
 ## 🧪 **Testing**
@@ -172,7 +172,7 @@ npm run build:deploy
 - Verificar permisos de notificación
 - Comprobar que PWA esté instalada
 
-**App no funciona offline**
+**App no funciona sin conexión**
 
 - Verificar Service Worker registrado
 - Limpiar cache del navegador

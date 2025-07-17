@@ -48,7 +48,7 @@ export const usePWA = (): PWAState & PWAActions => {
     const handleOffline = () => {
       setIsOffline(true);
       toast.error("Sin conexión a internet", {
-        description: "La app seguirá funcionando offline",
+        description: "La app seguirá funcionando sin conexión",
       });
     };
 
