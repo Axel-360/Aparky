@@ -26,6 +26,7 @@ import { UnifiedMap } from "./UnifiedMap";
 import type { CarLocation } from "../../../types/location";
 import { LocationUtils } from "@/utils";
 import { IconButton, StatusBadge } from "@/shared/components";
+import { AddressUtils } from "@/utils/addressUtils";
 
 interface LocationSaverProps {
   onLocationSaved: (location: CarLocation) => void;
@@ -178,8 +179,8 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
   // 🔥 MODIFICADA: Función para manejar direcciones sin conexión
   const getAddressFromCoordinates = async (lat: number, lng: number) => {
     if (!isOnline) {
-      // Sin conexión, usar coordenadas como dirección
-      setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      // Sin conexión, marcar claramente que son coordenadas temporales
+      setAddress(AddressUtils.formatCoordinatesAsAddress(lat, lng));
       return;
     }
 
@@ -187,10 +188,10 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     try {
       await new Promise((resolve) => setTimeout(resolve, 300));
       const address = await LocationUtils.reverseGeocode(lat, lng);
-      setAddress(address || "Dirección no disponible");
+      setAddress(address || AddressUtils.formatCoordinatesAsAddress(lat, lng));
     } catch (error) {
       console.error("Error getting address:", error);
-      setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`); // Fallback a coordenadas
+      setAddress(AddressUtils.formatCoordinatesAsAddress(lat, lng));
     } finally {
       setIsGettingAddress(false);
     }

@@ -8,6 +8,8 @@ import { useUIState } from "@/hooks/useUIState";
 import { useAppData } from "@/hooks/useAppData";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import { MainLayout } from "@/shared/components/Layout";
+import { useAddressSync } from "@/hooks/useAddressSync";
+import { AddressSyncIndicator } from "@/components/AddressSyncIndicator";
 
 // Componentes PWA
 import { InstallBanner } from "@/components/PWA/InstallBanner";
@@ -176,6 +178,32 @@ function AppContent() {
   }, []);
 
   const mapSectionRef = useRef<HTMLDivElement>(null);
+
+  const { syncMissingAddresses } = useAddressSync(
+    locations,
+    handleLocationUpdate,
+    !isOffline // isOnline
+  );
+
+  // 🔥 NUEVO: Listener de conexión recuperada
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log("🌐 Conexión recuperada - iniciando sincronización de direcciones");
+
+      toast.info("🌐 Conexión recuperada", {
+        description: "Verificando direcciones pendientes...",
+        duration: 3000,
+      });
+
+      // Sincronizar después de un breve delay
+      setTimeout(() => {
+        syncMissingAddresses();
+      }, 1500);
+    };
+
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [syncMissingAddresses]);
 
   useEffect(() => {
     const verifyDependencies = async () => {
@@ -354,15 +382,28 @@ function AppContent() {
     ]
   );
 
+  // En el sidebarContent, puedes añadir opcionalmente:
   const sidebarContent = useMemo(
     () => (
       <>
         <LocationSaver {...locationSaverProps} />
         <TimerDashboard {...timerDashboardProps} />
+        {/* 🔥 OPCIONAL: Indicador de sincronización */}
+        <AddressSyncIndicator locations={locations} isOnline={!isOffline} onSyncComplete={syncMissingAddresses} />
       </>
     ),
-    [locationSaverProps, timerDashboardProps]
+    [locationSaverProps, timerDashboardProps, locations, isOffline, syncMissingAddresses]
   );
+
+  // const sidebarContent = useMemo(
+  //   () => (
+  //     <>
+  //       <LocationSaver {...locationSaverProps} />
+  //       <TimerDashboard {...timerDashboardProps} />
+  //     </>
+  //   ),
+  //   [locationSaverProps, timerDashboardProps]
+  // );
 
   const mainContent = useMemo(
     () => (
