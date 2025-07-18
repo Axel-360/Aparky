@@ -34,7 +34,7 @@ interface LocationSaverProps {
   defaultReminderMinutes?: number;
   maxPhotos?: number;
   photoQuality?: "low" | "medium" | "high";
-  mapType?: string;
+  saveMapType?: string;
   initialCenter?: [number, number];
   initialZoom?: number;
 }
@@ -45,7 +45,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
   defaultReminderMinutes = 15,
   maxPhotos = 3,
   photoQuality = "medium",
-  mapType = "osm",
+  saveMapType = "osm",
   initialCenter = [40.4168, -3.7038],
   initialZoom = 13,
 }) => {
@@ -489,7 +489,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
             <UnifiedMap
               center={manualLocation || (latitude && longitude ? [latitude, longitude] : initialCenter)}
               zoom={initialZoom}
-              mapType={mapType}
+              mapType={saveMapType}
               height={smartFormMode === "simple" ? "280px" : "320px"}
               isManualMode={showManualMode}
               manualLocation={manualLocation}

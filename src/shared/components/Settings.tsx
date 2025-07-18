@@ -55,6 +55,7 @@ import {
   Image,
   Navigation,
   Target,
+  Eye,
 } from "lucide-react";
 
 interface SettingsProps {
@@ -426,41 +427,109 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Map className="h-5 w-5" />
-                Mapa
+                Mapas
               </CardTitle>
+              <p className="text-sm text-muted-foreground">Configura el tipo de vista para cada mapa</p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="mapType" className="flex items-center gap-2">
-                  {getMapTypeIcon(preferences.mapType)}
-                  Tipo de mapa
-                </Label>
-                <Select value={preferences.mapType} onValueChange={(value) => handleChange("mapType", value)}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="z-[9999]">
-                    <SelectItem value="osm">
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4" />
-                        Estándar
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="satellite">
-                      <div className="flex items-center gap-2">
-                        <Satellite className="h-4 w-4" />
-                        Satélite
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="terrain">
-                      <div className="flex items-center gap-2">
-                        <Mountain className="h-4 w-4" />
-                        Terreno
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+            <CardContent className="space-y-6">
+              {/* Mapa para guardar nueva ubicación */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-green-100 dark:bg-green-900/30 rounded">
+                    <MapPin className="h-3 w-3 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Mapa para guardar</Label>
+                    <p className="text-xs text-muted-foreground">Para marcar nuevas ubicaciones</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="saveMapType" className="flex items-center gap-2 text-sm">
+                    {getMapTypeIcon(preferences.saveMapType)}
+                    Tipo de vista
+                  </Label>
+                  <Select value={preferences.saveMapType} onValueChange={(value) => handleChange("saveMapType", value)}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[9999]">
+                      <SelectItem value="osm">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4" />
+                          Estándar
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="satellite">
+                        <div className="flex items-center gap-2">
+                          <Satellite className="h-4 w-4" />
+                          Satélite
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="terrain">
+                        <div className="flex items-center gap-2">
+                          <Mountain className="h-4 w-4" />
+                          Terreno
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              <Separator />
+
+              {/* Mapa de ubicaciones guardadas */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded">
+                    <Eye className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Mapa de ubicaciones</Label>
+                    <p className="text-xs text-muted-foreground">Para ver tus ubicaciones guardadas</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="mapType" className="flex items-center gap-2 text-sm">
+                    {getMapTypeIcon(preferences.mapType)}
+                    Tipo de vista
+                  </Label>
+                  <Select value={preferences.mapType} onValueChange={(value) => handleChange("mapType", value)}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[9999]">
+                      <SelectItem value="osm">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4" />
+                          Estándar
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="satellite">
+                        <div className="flex items-center gap-2">
+                          <Satellite className="h-4 w-4" />
+                          Satélite
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="terrain">
+                        <div className="flex items-center gap-2">
+                          <Mountain className="h-4 w-4" />
+                          Terreno
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Recomendaciones */}
+              <Alert>
+                <SettingsIcon className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>Recomendación:</strong> Usa vista satélite para reconocer lugares y vista estándar para calles
+                  y direcciones.
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
 

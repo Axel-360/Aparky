@@ -3,6 +3,7 @@ import React from "react";
 import { toast } from "sonner";
 import { Button, Input } from "@/shared/ui";
 import type { CarLocation } from "@/types/location";
+import { LocationUtils } from "./locationUtils";
 
 const STORAGE_KEY_LAST_LOCATION = "user-last-known-location";
 const STORAGE_KEY_USER_PREFERENCES_LOCATION = "user-preferred-default-location";
@@ -18,6 +19,7 @@ interface UserLocationPreference {
   latitude: number;
   longitude: number;
   name: string;
+  address?: string;
   isDefault: boolean;
 }
 
@@ -180,12 +182,19 @@ export class LocationManager {
   /**
    * Guarda una ubicación como preferida del usuario
    */
-  static saveUserPreferredLocation(latitude: number, longitude: number, name: string, isDefault: boolean = true): void {
+  static saveUserPreferredLocation(
+    latitude: number,
+    longitude: number,
+    name: string,
+    address?: string,
+    isDefault: boolean = true
+  ): void {
     try {
       const preference: UserLocationPreference = {
         latitude,
         longitude,
         name,
+        address,
         isDefault,
       };
       localStorage.setItem(STORAGE_KEY_USER_PREFERENCES_LOCATION, JSON.stringify(preference));
@@ -308,7 +317,7 @@ export const useSmartLocation = () => {
   }, []);
 
   const setPreferredLocation = React.useCallback((lat: number, lng: number, name: string) => {
-    LocationManager.saveUserPreferredLocation(lat, lng, name, true);
+    LocationManager.saveUserPreferredLocation(lat, lng, name, undefined, true);
   }, []);
 
   return {
@@ -326,16 +335,71 @@ export const LocationPreferenceSettings: React.FC<{
   const [isSettingLocation, setIsSettingLocation] = React.useState(false);
   const [locationName, setLocationName] = React.useState("");
   const [pendingLocation, setPendingLocation] = React.useState<[number, number] | null>(null);
+  const [pendingAddress, setPendingAddress] = React.useState<string | null>(null);
+  const [isGettingAddress, setIsGettingAddress] = React.useState(false);
 
-  const currentPreference = LocationManager.getUserPreferredLocation();
+  //  Estado local para la preferencia actual
+  const [currentPreference, setCurrentPreference] = React.useState<UserLocationPreference | null>(() =>
+    LocationManager.getUserPreferredLocation()
+  );
+
+  //  useEffect para sincronizar el estado local con localStorage
+  React.useEffect(() => {
+    const updatePreference = () => {
+      const preference = LocationManager.getUserPreferredLocation();
+      setCurrentPreference(preference);
+    };
+
+    // Actualizar al montar
+    updatePreference();
+
+    // Escuchar cambios en localStorage (si la página está abierta en múltiples tabs)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "user-preferred-default-location") {
+        updatePreference();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
+  const getAddressFromCoordinates = React.useCallback(async (lat: number, lng: number) => {
+    setIsGettingAddress(true);
+    try {
+      // Pequeña pausa para no saturar la API
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const address = await LocationUtils.reverseGeocode(lat, lng);
+      setPendingAddress(address || `${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+    } catch (error) {
+      console.error("Error obteniendo dirección:", error);
+      setPendingAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+    } finally {
+      setIsGettingAddress(false);
+    }
+  }, []);
 
   const handleGetCurrentLocation = () => {
     setIsSettingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setPendingLocation([position.coords.latitude, position.coords.longitude]);
-        setLocationName("Mi ubicación actual");
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        setPendingLocation([lat, lng]);
+
+        // Solo establecer nombre por defecto si el usuario no escribió nada
+        if (!locationName.trim()) {
+          setLocationName("Mi ubicación actual");
+        }
+
         setIsSettingLocation(false);
+
+        // Obtener la dirección de las coordenadas
+        getAddressFromCoordinates(lat, lng);
       },
       (error) => {
         console.error("Error getting location:", error);
@@ -347,9 +411,27 @@ export const LocationPreferenceSettings: React.FC<{
 
   const handleSavePreference = () => {
     if (pendingLocation && locationName.trim()) {
-      LocationManager.saveUserPreferredLocation(pendingLocation[0], pendingLocation[1], locationName.trim(), true);
+      //  Guardar con la dirección incluida
+      LocationManager.saveUserPreferredLocation(
+        pendingLocation[0],
+        pendingLocation[1],
+        locationName.trim(),
+        pendingAddress || undefined,
+        true
+      );
+
+      //  Actualizar el estado local inmediatamente
+      setCurrentPreference({
+        latitude: pendingLocation[0],
+        longitude: pendingLocation[1],
+        name: locationName.trim(),
+        address: pendingAddress || undefined,
+        isDefault: true,
+      });
+
       onPreferenceSet(pendingLocation[0], pendingLocation[1], locationName.trim());
       setPendingLocation(null);
+      setPendingAddress(null);
       setLocationName("");
       toast.success("Ubicación preferida guardada");
     }
@@ -357,6 +439,10 @@ export const LocationPreferenceSettings: React.FC<{
 
   const handleClearPreference = () => {
     LocationManager.clearUserPreferredLocation();
+
+    //  Actualizar el estado local inmediatamente
+    setCurrentPreference(null);
+
     toast.success("Ubicación preferida eliminada");
   };
 
@@ -381,22 +467,38 @@ export const LocationPreferenceSettings: React.FC<{
           },
           React.createElement(
             "div",
-            { className: "flex items-center justify-between" },
+            { className: "flex items-start justify-between gap-3" },
             React.createElement(
               "div",
-              null,
+              { className: "flex-1 min-w-0" },
               React.createElement(
                 "p",
-                { className: "font-medium text-green-800 dark:text-green-200" },
+                { className: "font-medium text-green-800 dark:text-green-200 truncate" },
                 currentPreference.name
               ),
-              React.createElement(
-                "p",
-                { className: "text-xs text-green-600 dark:text-green-400" },
-                `${currentPreference.latitude.toFixed(4)}, ${currentPreference.longitude.toFixed(4)}`
-              )
+              //  MOSTRAR LA DIRECCIÓN SI EXISTE, SINO LAS COORDENADAS
+              currentPreference.address
+                ? React.createElement(
+                    "p",
+                    { className: "text-sm text-green-600 dark:text-green-400 break-words" },
+                    currentPreference.address
+                  )
+                : React.createElement(
+                    "p",
+                    { className: "text-xs text-green-600 dark:text-green-400" },
+                    `${currentPreference.latitude.toFixed(4)}, ${currentPreference.longitude.toFixed(4)}`
+                  )
             ),
-            React.createElement(Button, { variant: "outline", size: "sm", onClick: handleClearPreference }, "Eliminar")
+            React.createElement(
+              Button,
+              {
+                variant: "outline",
+                size: "sm",
+                onClick: handleClearPreference,
+                className: "shrink-0",
+              },
+              "Eliminar"
+            )
           )
         )
       : React.createElement(
@@ -421,16 +523,54 @@ export const LocationPreferenceSettings: React.FC<{
             React.createElement(
               "div",
               {
-                className: "p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg",
+                className:
+                  "p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg space-y-2",
               },
               React.createElement(
-                "p",
-                { className: "text-sm text-blue-800 dark:text-blue-200" },
-                `📍 ${pendingLocation[0].toFixed(4)}, ${pendingLocation[1].toFixed(4)}`
+                "div",
+                { className: "flex items-start gap-2" },
+                React.createElement("div", { className: "text-blue-600 dark:text-blue-400 text-lg" }, "📍"),
+                React.createElement(
+                  "div",
+                  { className: "flex-1 min-w-0" },
+                  isGettingAddress
+                    ? React.createElement(
+                        "div",
+                        { className: "flex items-center gap-2" },
+                        React.createElement("div", {
+                          className: "animate-spin h-3 w-3 border border-blue-600 border-t-transparent rounded-full",
+                        }),
+                        React.createElement(
+                          "span",
+                          { className: "text-sm text-blue-700 dark:text-blue-300" },
+                          "Obteniendo dirección..."
+                        )
+                      )
+                    : React.createElement(
+                        "div",
+                        null,
+                        pendingAddress &&
+                          React.createElement(
+                            "p",
+                            { className: "text-sm font-medium text-blue-800 dark:text-blue-200 mb-1" },
+                            pendingAddress
+                          ),
+                        React.createElement(
+                          "p",
+                          { className: "text-xs text-blue-600 dark:text-blue-400 opacity-75" },
+                          `${pendingLocation[0].toFixed(4)}, ${pendingLocation[1].toFixed(4)}`
+                        )
+                      )
+                )
               ),
               React.createElement(
                 Button,
-                { size: "sm", onClick: handleSavePreference, className: "mt-2", disabled: !locationName.trim() },
+                {
+                  size: "sm",
+                  onClick: handleSavePreference,
+                  className: "w-full",
+                  disabled: !locationName.trim() || isGettingAddress,
+                },
                 "Guardar como preferida"
               )
             )

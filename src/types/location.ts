@@ -32,6 +32,7 @@ export interface UserPreferences {
   theme: "light" | "dark" | "system";
   sortBy: "date" | "note";
   showAll: boolean;
+  saveMapType: "osm" | "satellite" | "terrain";
   mapType: "osm" | "satellite" | "terrain";
   autoSave: boolean;
   notifications: boolean;

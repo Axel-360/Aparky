@@ -332,8 +332,9 @@ function AppContent() {
       mapCenter,
       isLoading: isGeoLoading,
       autoSave: preferences.autoSave || false,
+      saveMapType: preferences.saveMapType || "osm",
     }),
-    [handleLocationSaved, currentLocation, mapCenter, isGeoLoading, preferences.autoSave]
+    [handleLocationSaved, currentLocation, mapCenter, isGeoLoading, preferences.autoSave, preferences.saveMapType]
   );
 
   const timerDashboardProps = useMemo(

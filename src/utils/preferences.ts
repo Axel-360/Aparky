@@ -7,6 +7,7 @@ export const defaultPreferences: UserPreferences = {
   theme: "system",
   sortBy: "date",
   showAll: false,
+  saveMapType: "osm",
   mapType: "osm",
   autoSave: false,
   notifications: true,
