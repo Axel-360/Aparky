@@ -9,7 +9,7 @@ import { useAppData } from "@/hooks/useAppData";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import { MainLayout } from "@/shared/components/Layout";
 import { useAddressSync } from "@/hooks/useAddressSync";
-import { AddressSyncIndicator } from "@/components/AddressSyncIndicator";
+import { AddressSyncIndicator } from "@/features/location/components/AddressSyncIndicator";
 
 // Componentes PWA
 import { InstallBanner } from "@/components/PWA/InstallBanner";

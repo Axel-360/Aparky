@@ -1,4 +1,4 @@
-// src/components/AddressSyncIndicator.tsx
+// src/features/location/components/AddressSyncIndicator.tsx
 import React, { useState, useEffect } from "react";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
