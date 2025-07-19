@@ -357,7 +357,7 @@ function AppContent() {
       currentView,
       onViewChange: setCurrentView,
       sortBy: preferences.sortBy || "date",
-      showAll: preferences.showAll || true,
+      showAll: preferences.showAll ?? false,
       onSortChange: updateSortPreference,
       onShowAllChange: updateShowAllPreference,
       dateFilter: "all" as const,

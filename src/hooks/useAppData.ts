@@ -21,7 +21,7 @@ export const useAppData = (
         mapType: "osm",
         autoSave: false,
         sortBy: "date",
-        showAll: true,
+        showAll: false,
         notifications: true,
         defaultReminderMinutes: 5,
         maxPhotos: 3,

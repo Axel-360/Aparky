@@ -96,6 +96,11 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
       };
       toast.success(`Tema cambiado a ${themeNames[value as keyof typeof themeNames]}`);
     }
+
+    if (key === "showAll") {
+      console.log(`📋 Settings: showAll cambiado a ${value}`);
+      toast.success(`Mostrar todas las ubicaciones: ${value ? "Activado" : "Desactivado"}`);
+    }
   };
 
   const handleLocationPreferenceSet = (lat: number, lng: number, name: string) => {

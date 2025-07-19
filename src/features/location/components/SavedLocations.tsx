@@ -599,7 +599,9 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
   }, [locations, searchQuery, dateFilter, sortBy]);
 
   const displayedLocations = useMemo(() => {
-    return showAll ? filteredAndSortedLocations : filteredAndSortedLocations.slice(0, 5);
+    const result = showAll ? filteredAndSortedLocations : filteredAndSortedLocations.slice(0, 5);
+
+    return result;
   }, [filteredAndSortedLocations, showAll]);
 
   const handleDeleteClick = useCallback((locationToDelete: CarLocation) => {
