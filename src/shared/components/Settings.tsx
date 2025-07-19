@@ -165,8 +165,10 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
       const locations = data.locations || data;
       const importedPreferences = data.preferences || {};
 
+      // Guardar ubicaciones
       localStorage.setItem("car-locations", JSON.stringify(locations));
 
+      // Importar preferencias si existen
       if (Object.keys(importedPreferences).length > 0) {
         const currentPrefs = getUserPreferences();
         const mergedPrefs = { ...currentPrefs, ...importedPreferences };
@@ -179,23 +181,40 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
         }
       }
 
+      // Importar ubicación preferida si existe
       if (data.locationPreferences) {
         localStorage.setItem("user-preferred-default-location", JSON.stringify(data.locationPreferences));
       }
 
+      // Importar última ubicación conocida si existe
       if (data.lastKnownLocation) {
         localStorage.setItem("user-last-known-location", JSON.stringify(data.lastKnownLocation));
       }
 
-      toast.success(
-        `Importación exitosa: ${locations.length} ubicaciones importadas. Recarga la página para ver los cambios.`,
-        { duration: 5000 }
-      );
+      // 🔥 NUEVO: Toast mejorado con auto-reload
+      toast.success(`🎉 Importación completada exitosamente`, {
+        description: `Se importaron ${locations.length} ubicaciones. La página se recargará automáticamente.`,
+        duration: 6000,
+        action: {
+          label: "Recargar ahora",
+          onClick: () => window.location.reload(),
+        },
+      });
 
+      // Limpiar el input file
       event.target.value = "";
+
+      // 🔥 NUEVO: Auto-reload después de 2.5 segundos
+      setTimeout(() => {
+        console.log("🔄 Auto-recargando página después de importación...");
+        window.location.reload();
+      }, 2500);
     } catch (error) {
       console.error("Error importing data:", error);
       toast.error("Error al importar el archivo. Verifica que sea un archivo válido.");
+
+      // Limpiar el input file incluso si hay error
+      event.target.value = "";
     } finally {
       setIsImporting(false);
     }
