@@ -106,7 +106,7 @@ const typeConfig = {
 const sizeClasses = {
   sm: "max-w-sm",
   md: "max-w-md",
-  lg: "max-w-lg",
+  lg: "max-w-lg w-[95vw] sm:w-full",
 };
 
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -143,8 +143,8 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={cn(sizeClasses[size], "gap-6")}>
-        <DialogHeader className="space-y-4">
+      <DialogContent className={cn(sizeClasses[size], "gap-6 max-h-[90vh] overflow-hidden flex flex-col")}>
+        <DialogHeader className="space-y-4 shrink-0">
           {showIcon && (
             <div className={cn("mx-auto w-12 h-12 rounded-full flex items-center justify-center", styles.bg)}>
               <Icon className={cn("w-6 h-6", styles.icon)} />
@@ -158,9 +158,9 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           </div>
         </DialogHeader>
 
-        {children && <div className="py-2">{children}</div>}
+        {children && <div className="flex-1 overflow-y-auto">{children}</div>}
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2 shrink-0">
           <Button variant="outline" onClick={onClose} disabled={loading} className="w-full sm:w-auto">
             {cancelText}
           </Button>

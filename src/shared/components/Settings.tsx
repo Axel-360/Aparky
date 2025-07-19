@@ -56,6 +56,7 @@ import {
   Navigation,
   Target,
   Eye,
+  Zap,
 } from "lucide-react";
 
 interface SettingsProps {
@@ -764,49 +765,237 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
         </SheetFooter>
       </SheetContent>
 
-      {/* Dialog de confirmación para resetear configuración */}
       <ResetConfirmationDialog
         isOpen={resetDialog.isOpen}
         onClose={() => setResetDialog({ isOpen: false, isResetting: false })}
         onConfirm={handleConfirmReset}
         loading={resetDialog.isResetting}
         disabled={resetDialog.isResetting}
+        size="lg" // 🔥 AÑADIR: Tamaño más grande
       >
-        <div className="bg-yellow-50 dark:bg-yellow-950/20 rounded-lg p-4 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-yellow-800 dark:text-yellow-200">
-            <SettingsIcon className="w-4 h-4" />
-            Configuraciones que se restablecerán:
+        {/* 🔥 NUEVO: Contenedor con scroll */}
+        <div className="max-h-[60vh] overflow-y-auto pr-2">
+          <div className="bg-yellow-50 dark:bg-yellow-950/20 rounded-lg p-4 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-yellow-800 dark:text-yellow-200">
+              <SettingsIcon className="w-4 h-4" />
+              Configuraciones que se restablecerán:
+            </div>
+
+            <div className="grid gap-3 text-sm text-yellow-700 dark:text-yellow-300">
+              {/* SECCIÓN 1: APARIENCIA */}
+              <div className="space-y-2">
+                <div className="font-medium text-yellow-800 dark:text-yellow-200 text-xs uppercase tracking-wide">
+                  Apariencia
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Palette className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Tema</span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="font-medium">
+                      {preferences.theme === "light" ? "Claro" : preferences.theme === "dark" ? "Oscuro" : "Sistema"}
+                    </span>
+                    <span className="mx-2">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">Sistema</span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="border-yellow-200 dark:border-yellow-800" />
+
+              {/* SECCIÓN 2: MAPAS */}
+              <div className="space-y-2">
+                <div className="font-medium text-yellow-800 dark:text-yellow-200 text-xs uppercase tracking-wide">
+                  Mapas
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Eye className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Ubicaciones</span>
+                  </div>
+                  <div className="text-right shrink-0 text-xs">
+                    <span className="font-medium">
+                      {preferences.mapType === "osm"
+                        ? "Estándar"
+                        : preferences.mapType === "satellite"
+                        ? "Satélite"
+                        : "Terreno"}
+                    </span>
+                    <span className="mx-1">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">Estándar</span>
+                  </div>
+                </div>
+
+                {/* Incluir saveMapType si existe */}
+                {preferences.saveMapType && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      <span className="truncate">Guardar</span>
+                    </div>
+                    <div className="text-right shrink-0 text-xs">
+                      <span className="font-medium">
+                        {preferences.saveMapType === "osm"
+                          ? "Estándar"
+                          : preferences.saveMapType === "satellite"
+                          ? "Satélite"
+                          : "Terreno"}
+                      </span>
+                      <span className="mx-1">→</span>
+                      <span className="text-yellow-600 dark:text-yellow-400">Estándar</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator className="border-yellow-200 dark:border-yellow-800" />
+
+              {/* SECCIÓN 3: LISTADO */}
+              <div className="space-y-2">
+                <div className="font-medium text-yellow-800 dark:text-yellow-200 text-xs uppercase tracking-wide">
+                  Listado
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <List className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Ordenar por</span>
+                  </div>
+                  <div className="text-right shrink-0 text-xs">
+                    <span className="font-medium">{preferences.sortBy === "date" ? "Fecha" : "Nota"}</span>
+                    <span className="mx-1">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">Fecha</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Eye className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Mostrar todas</span>
+                  </div>
+                  <div className="text-right shrink-0 text-xs">
+                    <span className="font-medium">{preferences.showAll ? "Sí" : "No"}</span>
+                    <span className="mx-1">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">No</span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="border-yellow-200 dark:border-yellow-800" />
+
+              {/* SECCIÓN 4: FUNCIONALIDADES */}
+              <div className="space-y-2">
+                <div className="font-medium text-yellow-800 dark:text-yellow-200 text-xs uppercase tracking-wide">
+                  Funcionalidades
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Zap className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Auto-guardado</span>
+                  </div>
+                  <div className="text-right shrink-0 text-xs">
+                    <span className="font-medium">{preferences.autoSave ? "Sí" : "No"}</span>
+                    <span className="mx-1">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">No</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Bell className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Notificaciones</span>
+                  </div>
+                  <div className="text-right shrink-0 text-xs">
+                    <span className="font-medium">{preferences.notifications ? "Sí" : "No"}</span>
+                    <span className="mx-1">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">Sí</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Clock className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Recordatorio</span>
+                  </div>
+                  <div className="text-right shrink-0 text-xs">
+                    <span className="font-medium">{preferences.defaultReminderMinutes}min</span>
+                    <span className="mx-1">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">15min</span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="border-yellow-200 dark:border-yellow-800" />
+
+              {/* SECCIÓN 5: FOTOS */}
+              <div className="space-y-2">
+                <div className="font-medium text-yellow-800 dark:text-yellow-200 text-xs uppercase tracking-wide">
+                  Fotos
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Camera className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Máximo</span>
+                  </div>
+                  <div className="text-right shrink-0 text-xs">
+                    <span className="font-medium">{preferences.maxPhotos}</span>
+                    <span className="mx-1">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">3</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Camera className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Calidad</span>
+                  </div>
+                  <div className="text-right shrink-0 text-xs">
+                    <span className="font-medium">
+                      {preferences.photoQuality === "low"
+                        ? "Baja"
+                        : preferences.photoQuality === "medium"
+                        ? "Media"
+                        : "Alta"}
+                    </span>
+                    <span className="mx-1">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">Media</span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="border-yellow-200 dark:border-yellow-800" />
+
+              {/* SECCIÓN 6: UBICACIÓN PREFERIDA */}
+              <div className="space-y-2">
+                <div className="font-medium text-yellow-800 dark:text-yellow-200 text-xs uppercase tracking-wide">
+                  Ubicación
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Navigation className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Preferida</span>
+                  </div>
+                  <div className="text-right shrink-0 text-xs">
+                    <span className="font-medium truncate max-w-20">
+                      {locationInfo.preferredLocation?.name || "Ninguna"}
+                    </span>
+                    <span className="mx-1">→</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">Ninguna</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="grid gap-2 text-sm text-yellow-700 dark:text-yellow-300">
-            <div className="flex items-center gap-2">
-              <Palette className="w-3 h-3" />
-              Tema: {preferences.theme === "light" ? "claro" : preferences.theme === "dark" ? "oscuro" : "sistema"} →
-              sistema
-            </div>
-            <div className="flex items-center gap-2">
-              <Map className="w-3 h-3" />
-              Mapa:{" "}
-              {preferences.mapType === "osm"
-                ? "estándar"
-                : preferences.mapType === "satellite"
-                ? "satélite"
-                : "terreno"}{" "}
-              → estándar
-            </div>
-            <div className="flex items-center gap-2">
-              <Bell className="w-3 h-3" />
-              Notificaciones: {preferences.notifications ? "activadas" : "desactivadas"} → activadas
-            </div>
-            <div className="flex items-center gap-2">
-              <Camera className="w-3 h-3" />
-              Máx. fotos: {preferences.maxPhotos} → 3
-            </div>
-            {/* Mostrar que también se resetearán las preferencias de ubicación */}
-            <div className="flex items-center gap-2">
-              <Navigation className="w-3 h-3" />
-              Ubicación preferida: {locationInfo.preferredLocation?.name || "ninguna"} → ninguna
-            </div>
-          </div>
+        </div>
+
+        {/* ADVERTENCIA FINAL - FUERA DEL SCROLL */}
+        <div className="pt-3">
+          <Alert className="border-yellow-300 bg-yellow-100/50 dark:bg-yellow-900/20">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-xs font-medium">
+              ⚠️ Solo se resetea la configuración, no las ubicaciones guardadas.
+            </AlertDescription>
+          </Alert>
         </div>
       </ResetConfirmationDialog>
 
