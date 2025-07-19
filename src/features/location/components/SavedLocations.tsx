@@ -569,9 +569,33 @@ const SavedLocations: React.FC<SavedLocationsProps> = ({
       );
     }
 
-    return [...filtered].sort((a, b) =>
-      sortBy === "date" ? b.timestamp - a.timestamp : (a.note || "").localeCompare(b.note || "")
-    );
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "date") {
+        return b.timestamp - a.timestamp;
+      } else {
+        // Ordenar por nota: las que tienen nota van primero (A-Z), las sin nota van al final
+        const noteA = a.note?.trim() || "";
+        const noteB = b.note?.trim() || "";
+
+        // Si ambas tienen nota, ordenar alfabéticamente
+        if (noteA && noteB) {
+          return noteA.localeCompare(noteB);
+        }
+
+        // Si solo A tiene nota, A va primero
+        if (noteA && !noteB) {
+          return -1;
+        }
+
+        // Si solo B tiene nota, B va primero
+        if (!noteA && noteB) {
+          return 1;
+        }
+
+        // Si ninguna tiene nota, ordenar por fecha (más reciente primero)
+        return b.timestamp - a.timestamp;
+      }
+    });
   }, [locations, searchQuery, dateFilter, sortBy]);
 
   const displayedLocations = useMemo(() => {
