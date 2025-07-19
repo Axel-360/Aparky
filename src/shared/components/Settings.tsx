@@ -52,7 +52,6 @@ import {
   FileText,
   MapPin,
   Clock,
-  Image,
   Navigation,
   Target,
   Eye,
@@ -220,19 +219,34 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
   const handleConfirmDeleteAll = async () => {
     try {
       setDeleteAllDialog((prev) => ({ ...prev, isDeleting: true }));
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       localStorage.removeItem("car-locations");
       localStorage.removeItem("user-last-known-location");
       localStorage.removeItem("user-preferred-default-location");
+      localStorage.removeItem("user-preferences");
 
-      toast.success("Todos los datos han sido eliminados. Recarga la página para ver los cambios.");
+      toast.success("🗑️ Todos los datos eliminados correctamente", {
+        description: `Se eliminaron ${deleteAllDialog.locationCount} ubicaciones y toda la configuración.`,
+        duration: 8000,
+        action: {
+          label: "Recargar",
+          onClick: () => window.location.reload(),
+        },
+      });
+
       setDeleteAllDialog({
         isOpen: false,
         isDeleting: false,
         locationCount: 0,
       });
+
+      // 🔥 NUEVO: Auto-reload después de 3 segundos
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
     } catch (error) {
       console.error("Error deleting data:", error);
+      toast.error("Error al eliminar los datos. Inténtalo de nuevo.");
       setDeleteAllDialog((prev) => ({ ...prev, isDeleting: false }));
     }
   };
@@ -1005,59 +1019,167 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
         onClose={() => setDeleteAllDialog({ isOpen: false, isDeleting: false, locationCount: 0 })}
         onConfirm={handleConfirmDeleteAll}
         variant="destructive"
-        title="¿Eliminar TODOS los datos?"
-        description="Esta acción eliminará permanentemente toda la información de la aplicación."
-        confirmText="Sí, eliminar todo"
+        title="⚠️ ¿ELIMINAR TODOS LOS DATOS?"
+        description="Esta acción eliminará PERMANENTEMENTE toda tu información. NO se puede deshacer."
+        confirmText="SÍ, ELIMINAR TODO"
         loading={deleteAllDialog.isDeleting}
         disabled={deleteAllDialog.isDeleting}
         size="lg"
       >
-        <div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-4 space-y-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-red-800 dark:text-red-200">
-            <AlertTriangle className="w-4 h-4" />
-            Se eliminarán PERMANENTEMENTE:
+        {/* 🔥 NUEVO: Contenedor con scroll para móviles */}
+        <div className="max-h-[50vh] overflow-y-auto pr-2">
+          <div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-4 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-red-800 dark:text-red-200">
+              <AlertTriangle className="w-4 h-4" />
+              Se eliminarán PERMANENTEMENTE:
+            </div>
+
+            <div className="grid gap-3 text-sm">
+              {/* Ubicaciones guardadas */}
+              <div className="flex items-center justify-between p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-red-200 dark:border-red-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                    <MapPin className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-red-700 dark:text-red-300">Ubicaciones guardadas</div>
+                    <div className="text-xs text-red-600 dark:text-red-400">Todas tus ubicaciones de parking</div>
+                  </div>
+                </div>
+                <Badge variant="destructive" className="text-lg font-bold px-3 py-1">
+                  {storageDetails.locations}
+                </Badge>
+              </div>
+
+              {/* Timers de parking */}
+              <div className="flex items-center justify-between p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-red-200 dark:border-red-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-red-700 dark:text-red-300">Timers de parking</div>
+                    <div className="text-xs text-red-600 dark:text-red-400">Temporizadores activos</div>
+                  </div>
+                </div>
+                <Badge variant="destructive" className="text-lg font-bold px-3 py-1">
+                  {storageDetails.timers}
+                </Badge>
+              </div>
+
+              {/* Fotos almacenadas */}
+              <div className="flex items-center justify-between p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-red-200 dark:border-red-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                    <Camera className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-red-700 dark:text-red-300">Fotos almacenadas</div>
+                    <div className="text-xs text-red-600 dark:text-red-400">Imágenes de referencia</div>
+                  </div>
+                </div>
+                <Badge variant="destructive" className="text-lg font-bold px-3 py-1">
+                  {storageDetails.photos}
+                </Badge>
+              </div>
+
+              {/* 🔥 NUEVO: Configuración de la aplicación */}
+              <div className="flex items-center justify-between p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-red-200 dark:border-red-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                    <SettingsIcon className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-red-700 dark:text-red-300">Configuración personal</div>
+                    <div className="text-xs text-red-600 dark:text-red-400">Tema, preferencias, mapas</div>
+                  </div>
+                </div>
+                <Badge variant="destructive" className="text-lg font-bold px-3 py-1">
+                  ✓
+                </Badge>
+              </div>
+
+              {/* Ubicación preferida */}
+              <div className="flex items-center justify-between p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-red-200 dark:border-red-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                    <Navigation className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-red-700 dark:text-red-300">Ubicación preferida</div>
+                    <div className="text-xs text-red-600 dark:text-red-400">
+                      {locationInfo.preferredLocation?.name || "No configurada"}
+                    </div>
+                  </div>
+                </div>
+                <Badge variant="destructive" className="text-lg font-bold px-3 py-1">
+                  {locationInfo.preferredLocation ? "1" : "0"}
+                </Badge>
+              </div>
+
+              {/* 🔥 NUEVO: Información de tamaño total */}
+              <div className="flex items-center justify-between p-3 bg-red-100 dark:bg-red-900/40 rounded-lg border-2 border-red-300 dark:border-red-700">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-200 dark:bg-red-800 rounded-full flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-red-700 dark:text-red-300" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-red-800 dark:text-red-200">Tamaño total de datos</div>
+                    <div className="text-xs text-red-700 dark:text-red-300">Espacio que se liberará</div>
+                  </div>
+                </div>
+                <Badge variant="destructive" className="text-lg font-bold px-3 py-1">
+                  {stats.size}
+                </Badge>
+              </div>
+            </div>
           </div>
+        </div>
 
-          <div className="grid gap-3 text-sm">
-            <div className="flex items-center justify-between p-2 bg-white/50 dark:bg-black/20 rounded">
-              <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
-                <MapPin className="w-4 h-4" />
-                Ubicaciones guardadas
+        {/* 🔥 MEJORADO: Advertencias más específicas */}
+        <div className="space-y-3">
+          <Alert className="border-red-300 bg-red-100/50 dark:bg-red-900/20">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-sm font-medium">
+              <div className="space-y-2">
+                <p className="text-red-800 dark:text-red-200">
+                  🚨 <strong>ATENCIÓN:</strong> Esta acción es IRREVERSIBLE
+                </p>
+                <ul className="text-xs text-red-700 dark:text-red-300 space-y-1">
+                  <li>• No podrás recuperar ninguna ubicación</li>
+                  <li>• Se perderán todas las fotos</li>
+                  <li>• Los timers activos se cancelarán</li>
+                  <li>• Tu configuración se restablecerá</li>
+                </ul>
               </div>
-              <Badge variant="destructive">{storageDetails.locations}</Badge>
-            </div>
+            </AlertDescription>
+          </Alert>
 
-            <div className="flex items-center justify-between p-2 bg-white/50 dark:bg-black/20 rounded">
-              <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
-                <Clock className="w-4 h-4" />
-                Timers de parking
-              </div>
-              <Badge variant="destructive">{storageDetails.timers}</Badge>
-            </div>
+          {/* 🔥 NUEVO: Recomendación de exportar */}
+          {storageDetails.locations > 0 && (
+            <Alert className="border-blue-300 bg-blue-50 dark:bg-blue-950/20">
+              <Download className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                <p className="font-medium text-blue-800 dark:text-blue-200">
+                  💡 <strong>Recomendación:</strong> Exporta tus datos primero
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  Ve a "Exportar Datos" para guardar un respaldo antes de eliminar todo.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
 
-            <div className="flex items-center justify-between p-2 bg-white/50 dark:bg-black/20 rounded">
-              <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
-                <Image className="w-4 h-4" />
-                Fotos almacenadas
-              </div>
-              <Badge variant="destructive">{storageDetails.photos}</Badge>
-            </div>
-
-            {/* Mostrar datos de ubicación que se eliminarán */}
-            <div className="flex items-center justify-between p-2 bg-white/50 dark:bg-black/20 rounded">
-              <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
-                <Navigation className="w-4 h-4" />
-                Preferencias de ubicación
-              </div>
-              <Badge variant="destructive">{locationInfo.preferredLocation ? "1" : "0"}</Badge>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-red-200 dark:border-red-800">
-            <p className="text-xs text-red-600 dark:text-red-400 font-medium">
-              ⚠️ Esta acción NO se puede deshacer. Considera exportar tus datos primero.
-            </p>
-          </div>
+          {/* 🔥 NUEVO: Confirmación adicional si hay muchos datos */}
+          {storageDetails.locations > 10 && (
+            <Alert className="border-orange-300 bg-orange-50 dark:bg-orange-950/20">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                ⚠️ Tienes <strong>{storageDetails.locations} ubicaciones</strong> guardadas. ¿Estás completamente
+                seguro?
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </ConfirmationDialog>
     </Sheet>
