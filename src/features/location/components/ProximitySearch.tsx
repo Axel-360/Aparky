@@ -12,7 +12,23 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/shared/ui";
-import { Target, Loader2, Search, Map, Eye, Navigation, AlertTriangle, PartyPopper, RefreshCw } from "lucide-react";
+import {
+  Target,
+  Loader2,
+  Search,
+  Map,
+  Eye,
+  Navigation,
+  AlertTriangle,
+  PartyPopper,
+  RefreshCw,
+  Car,
+  Bike,
+  Footprints,
+  MapPinCheck,
+  Pin,
+  NotebookText,
+} from "lucide-react";
 import { LocationUtils, Formatters } from "@/utils";
 import { toast } from "sonner";
 
@@ -305,32 +321,32 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({
                 onClick={() => handleRadiusChange(200)}
                 className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80 transition-colors"
               >
-                🚶 2 manzanas
+                <Footprints className="w-5 h-5 inline mr-1" /> 2 manzanas
               </button>
               <button
                 onClick={() => handleRadiusChange(800)}
                 className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80 transition-colors"
               >
-                🚶 Cerca andando
+                <Footprints className="w-5 h-5 inline mr-1" /> Cerca andando
               </button>
               <button
                 onClick={() => handleRadiusChange(2000)}
                 className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80 transition-colors"
               >
-                🚲 Barrio
+                <Bike className="w-5 h-5 inline mr-1" /> Barrio
               </button>
               <button
                 onClick={() => handleRadiusChange(10000)}
                 className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80 transition-colors"
               >
-                🚗 Ciudad
+                <Car className="w-5 h-5 inline mr-1" /> Ciudad
               </button>
             </div>
           </div>
 
           {/* Indicador del radio actual */}
           <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-            📍 Buscando en{" "}
+            <Search className="w-4 h-4 inline mr-1" /> Buscando en{" "}
             {searchRadius >= 1000
               ? `${(searchRadius / 1000).toFixed(searchRadius >= 10000 ? 0 : 1)}km`
               : `${searchRadius}m`}
@@ -379,7 +395,9 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({
             <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm">
-                  <span className="font-medium text-green-800 dark:text-green-200">📍 Ubicación obtenida</span>
+                  <span className="font-medium text-green-800 dark:text-green-200">
+                    <MapPinCheck className="w-5 h-5 inline mr-1" /> Ubicación obtenida
+                  </span>
                   <p className="text-green-600 dark:text-green-400 text-xs mt-1">
                     Buscando en un radio de {searchRadius >= 1000 ? `${searchRadius / 1000}km` : `${searchRadius}m`}
                   </p>
@@ -443,8 +461,17 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({
                                 {new Date(location.timestamp).toLocaleDateString()}
                               </p>
                             </div>
-                            {location.note && <p className="text-sm font-medium">💭 {location.note}</p>}
-                            {location.address && <p className="text-xs text-muted-foreground">📍 {location.address}</p>}
+                            {location.note && (
+                              <p className="text-sm font-medium">
+                                <NotebookText className="w-4 h-4 inline mr-1" />
+                                {location.note}
+                              </p>
+                            )}
+                            {location.address && (
+                              <p className="text-xs text-muted-foreground">
+                                <Pin className="w-4 h-4 inline mr-1  text-red-700" /> {location.address}
+                              </p>
+                            )}
                             {location.distance <= 100 && (
                               <Alert className="mt-2 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
                                 <PartyPopper className="h-4 w-4 text-green-600" />

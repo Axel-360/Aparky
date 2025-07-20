@@ -14,7 +14,7 @@ import {
   CardTitle,
   Separator,
 } from "@/shared/ui";
-import { BarChart, Clock, CalendarDays, MapPin, Lightbulb } from "lucide-react";
+import { BarChart, Clock, CalendarDays, MapPin, Lightbulb, Dot } from "lucide-react";
 
 interface StatsProps {
   locations: CarLocation[];
@@ -144,7 +144,9 @@ const StatCard = ({
 
 const InsightItem = ({ text }: { text: string }) => (
   <div className="flex items-start gap-3 p-2 bg-secondary/30 rounded-lg">
-    <span className="mt-1">💡</span>
+    <span className="mt-1">
+      <Dot className="w-4 h-4" />
+    </span>
     <p>{text}</p>
   </div>
 );

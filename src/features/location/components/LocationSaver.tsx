@@ -18,6 +18,11 @@ import {
   Wifi,
   WifiOff,
   RotateCcw,
+  CloudSun,
+  Warehouse,
+  SquareParking,
+  MapPinPlusInside,
+  Save,
 } from "lucide-react";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { PhotoCapture } from "../../photo";
@@ -306,10 +311,10 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
   };
 
   const quickParkingActions = [
-    { type: "Calle" as const, icon: "🛣️", color: "bg-blue-100 hover:bg-blue-200 text-blue-800" },
-    { type: "Garaje" as const, icon: "🏢", color: "bg-gray-100 hover:bg-gray-200 text-gray-800" },
-    { type: "Parking" as const, icon: "🅿️", color: "bg-green-100 hover:bg-green-200 text-green-800" },
-    { type: "Otro" as const, icon: "📍", color: "bg-purple-100 hover:bg-purple-200 text-purple-800" },
+    { type: "Calle" as const, icon: <CloudSun />, color: "bg-blue-100 hover:bg-blue-200" },
+    { type: "Garaje" as const, icon: <Warehouse />, color: "bg-gray-100 hover:bg-gray-200" },
+    { type: "Parking" as const, icon: <SquareParking />, color: "bg-green-100 hover:bg-green-200" },
+    { type: "Otro" as const, icon: <MapPinPlusInside />, color: "bg-purple-100 hover:bg-purple-200" },
   ];
 
   const getLocationStatus = () => {
@@ -580,10 +585,10 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
               <label className="text-sm font-medium">Tipo de aparcamiento</label>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { value: "Calle", icon: "🛣️", label: "Calle", desc: "En la vía pública" },
-                  { value: "Garaje", icon: "🏢", label: "Garaje", desc: "Subterráneo privado" },
-                  { value: "Parking", icon: "🅿️", label: "Parking", desc: "Al aire libre" },
-                  { value: "Otro", icon: "📍", label: "Otro", desc: "Otro tipo" },
+                  { value: "Calle", icon: <CloudSun />, label: "Calle", desc: "En la vía pública" },
+                  { value: "Garaje", icon: <Warehouse />, label: "Garaje", desc: "Subterráneo privado" },
+                  { value: "Parking", icon: <SquareParking />, label: "Parking", desc: "Al aire libre" },
+                  { value: "Otro", icon: <MapPinPlusInside />, label: "Otro", desc: "Otro tipo" },
                 ].map((option) => (
                   <button
                     key={option.value}
@@ -720,7 +725,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
               </>
             ) : (
               <>
-                💾 Guardar mi coche aquí
+                <Save /> Guardar mi coche aquí
                 {!isOnline && showManualMode && <span className="text-xs opacity-75 ml-1">(sin conexión)</span>}
               </>
             )}

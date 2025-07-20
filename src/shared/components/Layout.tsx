@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import Header from "@/shared/components/Header";
 import { useTheme } from "@/shared/ui/theme-provider";
+import { Car, Smartphone, Heart, Sun, Moon, Monitor } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -25,14 +26,34 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
   const getThemeDisplayText = () => {
     switch (theme) {
       case "light":
-        return "☀️ Modo Claro";
+        return (
+          <span className="flex items-center gap-1">
+            <Sun className="w-3 h-3" />
+            Modo Claro
+          </span>
+        );
       case "dark":
-        return "🌙 Modo Oscuro";
+        return (
+          <span className="flex items-center gap-1">
+            <Moon className="w-3 h-3" />
+            Modo Oscuro
+          </span>
+        );
       case "system":
         const isSystemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        return `🖥️ Modo Sistema (${isSystemDark ? "Oscuro" : "Claro"})`;
+        return (
+          <span className="flex items-center gap-1">
+            <Monitor className="w-3 h-3" />
+            Modo Sistema ({isSystemDark ? "Oscuro" : "Claro"})
+          </span>
+        );
       default:
-        return "🌙 Modo Oscuro";
+        return (
+          <span className="flex items-center gap-1">
+            <Moon className="w-3 h-3" />
+            Modo Oscuro
+          </span>
+        );
     }
   };
 
@@ -69,11 +90,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, className, headerProps
         <footer className="bg-muted/30 border-t mt-12">
           <div className="container mx-auto max-w-7xl px-4 py-8">
             <div className="text-center space-y-2">
-              <p className="text-xs text-muted-foreground">Creado con ❤️ por David Rovira</p>
+              <p className="text-xs text-muted-foreground">
+                Creado con <Heart className="w-4 h-4 inline mr-1 text-red-500" />
+                por David Rovira
+              </p>
               <div className="flex justify-center items-center gap-4 text-xs text-muted-foreground">
-                <span>🚗 Aparky</span>
+                <span>
+                  <Car className="w-4 h-4 inline mr-1" />
+                  Aparky
+                </span>
                 <span>•</span>
-                <span>📱 Aplicación Web</span>
+                <span>
+                  <Smartphone className="w-4 h-4 inline mr-1" />
+                  Aplicación Web
+                </span>
                 <span>•</span>
                 <span>{getThemeDisplayText()}</span>
               </div>

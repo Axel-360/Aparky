@@ -3,7 +3,19 @@ import React, { useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import { Button } from "@/shared/ui";
-import { Navigation, Target } from "lucide-react";
+import {
+  Navigation,
+  Target,
+  CalendarDays,
+  NotebookText,
+  SquareParking,
+  HandCoins,
+  MapPinCheckInside,
+  Pin,
+  MapPinned,
+  Car,
+  MapPin,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { CarLocation } from "@/types/location";
 import "leaflet/dist/leaflet.css";
@@ -290,55 +302,84 @@ export const UnifiedMap: React.FC<UnifiedMapProps> = ({
             >
               <Popup>
                 <div style={{ minWidth: "200px" }}>
-                  <h4 style={{ margin: "0 0 10px 0", color: isSelected ? "#ef4444" : "#3b82f6" }}>
-                    {isLatest ? "🚗 Ubicación más reciente" : "📍 Ubicación guardada"}
+                  <h4
+                    style={{
+                      margin: "0 0 10px 0",
+                      color: isSelected ? "#ef4444" : "#3b82f6",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    {isLatest ? (
+                      <>
+                        <Car style={{ width: "16px", height: "16px" }} />
+                        Ubicación más reciente
+                      </>
+                    ) : (
+                      <>
+                        <MapPin style={{ width: "16px", height: "16px" }} />
+                        Ubicación guardada
+                      </>
+                    )}
                   </h4>
 
-                  <p style={{ margin: "5px 0" }}>
-                    <strong>📅 Guardada:</strong>
+                  <p style={{ margin: "8px 0" }}>
+                    <strong>
+                      <CalendarDays className="w-4 h-4 inline mr-1 text-yellow-500" /> Guardada:
+                    </strong>
                     <br />
                     {formatFriendlyDate(location.timestamp)}
                   </p>
 
                   {location.note && (
-                    <p style={{ margin: "5px 0" }}>
-                      <strong>💭 Nota:</strong>
+                    <p style={{ margin: "8px 0" }}>
+                      <strong>
+                        <NotebookText className="w-4 h-4 inline mr-1 text-fuchsia-600" /> Nota:
+                      </strong>
                       <br />
                       {location.note}
                     </p>
                   )}
 
                   {location.parkingType && (
-                    <p style={{ margin: "5px 0" }}>
-                      <strong>🅿️ Tipo:</strong>
+                    <p style={{ margin: "8px 0" }}>
+                      <strong>
+                        <SquareParking className="w-4 h-4 inline mr-1 text-blue-600" /> Tipo:
+                      </strong>
                       <br />
                       {location.parkingType}
                     </p>
                   )}
                   {location.cost && (
-                    <p style={{ margin: "5px 0" }}>
-                      <strong>💰 Coste:</strong>
+                    <p style={{ margin: "8px 0" }}>
+                      <strong>
+                        <HandCoins className="w-4 h-4 inline mr-1  text-green-600" /> Coste:
+                      </strong>
                       <br />
                       {location.cost.toFixed(2)}€
                     </p>
                   )}
 
                   {location.isManualPlacement && (
-                    <p style={{ margin: "5px 0", fontSize: "12px", color: "#f59e0b" }}>
-                      🎯 Ubicación marcada manualmente
+                    <p style={{ margin: "8px 0", fontSize: "12px", color: "#f59e0b" }}>
+                      <MapPinCheckInside className="w-4 h-4 inline mr-1" /> Ubicación marcada manualmente
                     </p>
                   )}
 
                   {location.address && (
-                    <p style={{ margin: "5px 0", fontSize: "12px", color: "#666" }}>
-                      <strong>📍Dirección:</strong>
+                    <p style={{ margin: "8px 0", fontSize: "12px", color: "#666" }}>
+                      <strong>
+                        <Pin className="w-4 h-4 inline mr-1  text-red-600" /> Dirección:
+                      </strong>
                       <br />
                       {location.address}
                     </p>
                   )}
 
                   <p style={{ margin: "5px 0 0 0", fontSize: "11px", color: "#999", fontFamily: "monospace" }}>
-                    🗺️ {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                    <MapPinned className="w-4 h-4 inline mr-1  text-indigo-600" /> {location.latitude.toFixed(6)},{" "}
+                    {location.longitude.toFixed(6)}
                   </p>
                 </div>
               </Popup>

@@ -1,7 +1,7 @@
 // src/shared/components/Header.tsx
 import React from "react";
 import { Button } from "@/shared/ui";
-import { Map, Search, BarChart3, Settings } from "lucide-react";
+import { Map, Search, BarChart3, Settings, Car } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -20,7 +20,8 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, onShowStats,
           {/* Title Section */}
           <div className="text-center sm:text-left">
             <h1 className="text-xl sm:text-2xl font-bold mb-1 flex items-center justify-center sm:justify-start gap-2">
-              🚗 ¿Dónde aparqué mi coche?
+              <Car className="w-10 h-10 inline mr-1" />
+              ¿Dónde aparqué mi coche?
             </h1>
             <p className="text-blue-100 text-xs sm:text-sm">
               Guarda y encuentra fácilmente donde aparcaste tu vehículo

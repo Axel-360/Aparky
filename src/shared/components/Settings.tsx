@@ -56,6 +56,9 @@ import {
   Target,
   Eye,
   Zap,
+  Car,
+  Heart,
+  PartyPopper,
 } from "lucide-react";
 
 interface SettingsProps {
@@ -192,7 +195,8 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
       }
 
       // 🔥 NUEVO: Toast mejorado con auto-reload
-      toast.success(`🎉 Importación completada exitosamente`, {
+      toast.success(`Importación completada exitosamente`, {
+        icon: <PartyPopper className="w-4 h-4" />,
         description: `Se importaron ${locations.length} ubicaciones. La página se recargará automáticamente.`,
         duration: 6000,
         action: {
@@ -244,7 +248,8 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
       localStorage.removeItem("user-preferred-default-location");
       localStorage.removeItem("user-preferences");
 
-      toast.success("🗑️ Todos los datos eliminados correctamente", {
+      toast.success("Todos los datos eliminados correctamente", {
+        icon: <Trash2 className="w-4 h-4" />,
         description: `Se eliminaron ${deleteAllDialog.locationCount} ubicaciones y toda la configuración.`,
         duration: 8000,
         action: {
@@ -777,8 +782,14 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
           <Card>
             <CardContent className="pt-6">
               <div className="text-center text-sm text-muted-foreground space-y-2">
-                <p>🚗 Aparky</p>
-                <p>Versión 2.0 - Creado con ❤️ por David Rovira</p>
+                <p>
+                  <Car className="w-4 h-4 inline mr-1" />
+                  Aparky
+                </p>
+                <p>
+                  Versión 2.0 - Creado con <Heart className="w-4 h-4 inline mr-1 text-red-500" />
+                  por David Rovira
+                </p>
                 <div className="flex justify-center gap-2">
                   <Badge variant="secondary">React</Badge>
                   <Badge variant="secondary">TypeScript</Badge>
@@ -1026,7 +1037,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
           <Alert className="border-yellow-300 bg-yellow-100/50 dark:bg-yellow-900/20">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="text-xs font-medium">
-              ⚠️ Solo se resetea la configuración, no las ubicaciones guardadas.
+              Solo se resetea la configuración, no las ubicaciones guardadas.
             </AlertDescription>
           </Alert>
         </div>
@@ -1038,7 +1049,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
         onClose={() => setDeleteAllDialog({ isOpen: false, isDeleting: false, locationCount: 0 })}
         onConfirm={handleConfirmDeleteAll}
         variant="destructive"
-        title="⚠️ ¿ELIMINAR TODOS LOS DATOS?"
+        title="¿ELIMINAR TODOS LOS DATOS?"
         description="Esta acción eliminará PERMANENTEMENTE toda tu información. NO se puede deshacer."
         confirmText="SÍ, ELIMINAR TODO"
         loading={deleteAllDialog.isDeleting}
@@ -1162,7 +1173,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
             <AlertDescription className="text-sm font-medium">
               <div className="space-y-2">
                 <p className="text-red-800 dark:text-red-200">
-                  🚨 <strong>ATENCIÓN:</strong> Esta acción es IRREVERSIBLE
+                  <strong>ATENCIÓN:</strong> Esta acción es IRREVERSIBLE
                 </p>
                 <ul className="text-xs text-red-700 dark:text-red-300 space-y-1">
                   <li>• No podrás recuperar ninguna ubicación</li>
@@ -1180,7 +1191,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
               <Download className="h-4 w-4" />
               <AlertDescription className="text-sm">
                 <p className="font-medium text-blue-800 dark:text-blue-200">
-                  💡 <strong>Recomendación:</strong> Exporta tus datos primero
+                  <strong>Recomendación:</strong> Exporta tus datos primero
                 </p>
                 <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
                   Ve a "Exportar Datos" para guardar un respaldo antes de eliminar todo.
@@ -1194,8 +1205,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
             <Alert className="border-orange-300 bg-orange-50 dark:bg-orange-950/20">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                ⚠️ Tienes <strong>{storageDetails.locations} ubicaciones</strong> guardadas. ¿Estás completamente
-                seguro?
+                Tienes <strong>{storageDetails.locations} ubicaciones</strong> guardadas. ¿Estás completamente seguro?
               </AlertDescription>
             </Alert>
           )}
