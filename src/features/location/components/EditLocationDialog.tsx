@@ -24,7 +24,28 @@ import L from "leaflet";
 import { PhotoCapture } from "@/features/photo";
 import { ParkingTimer } from "@/features/parking";
 import { toast } from "sonner";
-import { Edit, Save, X, Clock, Camera, Info, Target, Navigation, RefreshCw, AlertTriangle } from "lucide-react";
+import {
+  Edit,
+  Save,
+  X,
+  Clock,
+  Camera,
+  Info,
+  Target,
+  Navigation,
+  RefreshCw,
+  AlertTriangle,
+  CloudSun,
+  Warehouse,
+  SquareParking,
+  MapPinPlusInside,
+  Pointer,
+  MapPin,
+  NotebookPen,
+  Pin,
+  MapPinned,
+  House,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CarLocation } from "@/types/location";
 import "leaflet/dist/leaflet.css";
@@ -51,7 +72,7 @@ const createCarIcon = (isSelected: boolean = false) => {
       justify-content: center;
       font-size: 12px;
       animation: ${isSelected ? "pulse 2s infinite" : "none"};
-    ">🚗</div>
+    "><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-car-icon lucide-car"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg></div>
     <style>
       @keyframes pulse {
         0%, 100% { transform: scale(1); }
@@ -148,7 +169,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
       setNewLongitude(lng);
       setMapCenter([lat, lng]);
       getAddressFromCoordinates(lat, lng);
-      toast.success("📍 Nueva ubicación marcada");
+      toast.success("Nueva ubicación marcada");
     },
     [getAddressFromCoordinates]
   );
@@ -162,7 +183,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
           setNewLongitude(userLocation[1]);
           setMapCenter(userLocation);
           getAddressFromCoordinates(userLocation[0], userLocation[1]);
-          toast.success("📍 Ubicación actualizada a tu posición actual");
+          toast.success("Ubicación actualizada a tu posición actual");
         },
         (error) => {
           console.error("Error getting current location:", error);
@@ -185,7 +206,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
     setNewAddress(location.address);
     setMapCenter([location.latitude, location.longitude]);
     setIsEditingLocation(false);
-    toast.info("📍 Ubicación restablecida a la original");
+    toast.info("Ubicación restablecida a la original");
   }, [location]);
 
   const handleSave = async () => {
@@ -213,11 +234,11 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
       await onSave(updates);
 
       toast.success(
-        locationChanged ? "✅ Ubicación y datos actualizados correctamente" : "✅ Ubicación actualizada correctamente"
+        locationChanged ? "Ubicación y datos actualizados correctamente" : "Ubicación actualizada correctamente"
       );
       onClose();
     } catch (error) {
-      toast.error("❌ Error al actualizar la ubicación");
+      toast.error("Error al actualizar la ubicación");
       console.error("Error updating location:", error);
     } finally {
       setIsSaving(false);
@@ -227,28 +248,28 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
   const parkingTypeOptions = [
     {
       value: "Calle",
-      icon: "🛣️",
+      icon: <CloudSun />,
       label: "Calle",
       description: "Aparcamiento en la calle",
       color: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-300",
     },
     {
       value: "Garaje",
-      icon: "🏢",
+      icon: <Warehouse />,
       label: "Garaje",
       description: "Garaje subterráneo",
       color: "text-gray-600 bg-gray-50 border-gray-200 dark:bg-gray-950 dark:border-gray-800 dark:text-gray-300",
     },
     {
       value: "Parking",
-      icon: "🅿️",
+      icon: <SquareParking />,
       label: "Parking",
       description: "Aparcamiento al aire libre",
       color: "text-green-600 bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800 dark:text-green-300",
     },
     {
       value: "Otro",
-      icon: "📍",
+      icon: <MapPinPlusInside />,
       label: "Otro",
       description: "Otro tipo de aparcamiento",
       color:
@@ -269,7 +290,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
   const getLocationTypeInfo = () => {
     if (location.isManualPlacement || newLatitude !== location.latitude || newLongitude !== location.longitude) {
       return {
-        icon: "🎯",
+        icon: <Pointer className="w-4 h-4" />,
         text: "Ubicación editada manualmente",
         description: "Coordenadas modificadas",
       };
@@ -277,14 +298,14 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
 
     if (location.accuracy && location.accuracy <= 10) {
       return {
-        icon: "🎯",
+        icon: <Target className="w-4 h-4" />,
         text: "GPS de alta precisión",
         description: `±${Math.round(location.accuracy)}m`,
       };
     }
 
     return {
-      icon: "📍",
+      icon: <MapPin className="w-4 h-4" />,
       text: "GPS automático",
       description: location.accuracy ? `±${Math.round(location.accuracy)}m` : "Ubicación GPS",
     };
@@ -327,8 +348,12 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
 
         <Tabs defaultValue="details" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="details">📝 Detalles</TabsTrigger>
-            <TabsTrigger value="location">📍 Ubicación</TabsTrigger>
+            <TabsTrigger value="details">
+              <NotebookPen /> Detalles
+            </TabsTrigger>
+            <TabsTrigger value="location">
+              <MapPin /> Ubicación
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="space-y-6 mt-6">
@@ -553,7 +578,9 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                     <Marker position={[location.latitude, location.longitude]} icon={createCarIcon(false)}>
                       <Popup>
                         <div className="text-center p-2">
-                          <h4 className="font-semibold text-gray-600 mb-2">📍 Ubicación original</h4>
+                          <h4 className="font-semibold text-gray-600 mb-2">
+                            <Pin className="w-4 h-4 inline text-red-600" /> Ubicación original
+                          </h4>
                           <p className="text-sm text-gray-600">
                             {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                           </p>
@@ -575,13 +602,16 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                       </div>
 
                       <div className="text-sm text-muted-foreground font-mono">
-                        📍 {newLatitude.toFixed(6)}, {newLongitude.toFixed(6)}
+                        <MapPinned className="w-4 h-4 inline text-blue-600" /> {newLatitude.toFixed(6)},{" "}
+                        {newLongitude.toFixed(6)}
                       </div>
 
                       {isGettingAddress ? (
                         <div className="text-sm text-muted-foreground">🔍 Obteniendo dirección...</div>
                       ) : newAddress ? (
-                        <div className="text-sm text-muted-foreground">🏠 {newAddress}</div>
+                        <div className="text-sm text-muted-foreground">
+                          <House className="w-4 h-4 inline mr-1 text-amber-50" /> {newAddress}
+                        </div>
                       ) : null}
                     </div>
                   </CardContent>

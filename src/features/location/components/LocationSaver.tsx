@@ -23,6 +23,7 @@ import {
   SquareParking,
   MapPinPlusInside,
   Save,
+  Trash2,
 } from "lucide-react";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { PhotoCapture } from "../../photo";
@@ -209,10 +210,14 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     if (!finalLat || !finalLng) {
       if (!showManualMode) {
         getCurrentPosition();
-        toast.error("📍 No se pudo obtener tu ubicación. Activa el GPS o usa modo manual.");
+        toast.error("No se pudo obtener tu ubicación. Activa el GPS o usa modo manual.", {
+          description: "Asegúrate de permitir el acceso a la ubicación",
+        });
         return;
       } else {
-        toast.error("🎯 Por favor, marca una ubicación en el mapa");
+        toast.error("Por favor, marca una ubicación en el mapa", {
+          description: "Haz clic en el mapa para seleccionar dónde está tu coche",
+        });
         return;
       }
     }
@@ -257,7 +262,18 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
       }
 
       // 🔥 MODIFICADO: Toast con información de estado offline
-      const emoji = isAutoSave ? "⚡" : manualLocation ? "🎯" : "📍";
+      // Actualizar estado de auto-save
+
+      if (isAutoSave) {
+        setLastAutoSave(Date.now());
+
+        setLastSavedLocation([finalLat, finalLng]);
+
+        localStorage.setItem("car-location-last-autosave", Date.now().toString());
+
+        localStorage.setItem("car-location-last-coordinates", JSON.stringify([finalLat, finalLng]));
+      }
+
       const message = isAutoSave
         ? "Ubicación guardada automáticamente"
         : manualLocation
@@ -266,8 +282,8 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
           : "Ubicación manual guardada (sin conexión)"
         : "Ubicación GPS guardada";
 
-      toast.success(`${emoji} ${message}`, {
-        description: address ? `📍 ${address.split(",")[0]}` : undefined,
+      toast.success(message, {
+        description: address ? `${address.split(",")[0]}` : undefined,
         duration: 4000,
         action: !isOnline
           ? {
@@ -280,7 +296,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
       });
     } catch (error) {
       console.error("Error saving location:", error);
-      toast.error("❌ No se pudo guardar la ubicación", {
+      toast.error("No se pudo guardar la ubicación", {
         description: "Inténtalo de nuevo en unos segundos",
         action: {
           label: "Reintentar",
@@ -297,13 +313,15 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
     setShowManualMode(!showManualMode);
     setManualLocation(null);
     if (!showManualMode) {
-      toast.info("🎯 Modo manual activado. Haz clic en el mapa para marcar la ubicación.");
+      toast.info("Modo manual activado. Haz clic en el mapa para marcar tu ubicación", {
+        description: "Puedes arrastrar y hacer zoom para mayor precisión",
+      });
     }
   };
 
   const handleManualLocationSet = (lat: number, lng: number) => {
     setManualLocation([lat, lng]);
-    toast.success("📍 Ubicación marcada correctamente");
+    toast.success("Ubicación marcada correctamente");
   };
 
   const toggleFormMode = () => {
@@ -320,7 +338,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
   const getLocationStatus = () => {
     if (showManualMode) {
       return manualLocation
-        ? { status: "manual-ready", text: "📍 Ubicación marcada", color: "text-amber-600" }
+        ? { status: "manual-ready", text: "📌 Ubicación marcada", color: "text-amber-600" }
         : { status: "manual-waiting", text: "🎯 Marca en el mapa", color: "text-orange-500" };
     }
 
@@ -416,10 +434,10 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
                 <p className="text-xs opacity-90">Posibles causas: GPS desactivado, permisos denegados, o mala señal</p>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={getCurrentPosition}>
-                    🔄 Reintentar GPS
+                    <RotateCcw className="text-blue-500" /> Reintentar GPS
                   </Button>
                   <Button variant="outline" size="sm" onClick={toggleManualMode}>
-                    🎯 Modo manual
+                    <Target className="text-red-500" /> Modo manual
                   </Button>
                 </div>
               </div>
@@ -479,7 +497,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
                   size="sm"
                   onClick={() => {
                     getCurrentPosition();
-                    toast.info("🔍 Obteniendo tu ubicación GPS...");
+                    toast.info("Obteniendo tu ubicación GPS...");
                   }}
                   disabled={loading}
                   className="text-xs h-7"
@@ -662,7 +680,7 @@ const LocationSaver: React.FC<LocationSaverProps> = ({
                 className="flex items-center gap-2 text-sm"
                 size="sm"
               >
-                <RotateCcw className="w-4 h-4" />
+                <Trash2 className="w-4 h-4 text-red-500" />
                 Limpiar formulario
               </Button>
             </div>

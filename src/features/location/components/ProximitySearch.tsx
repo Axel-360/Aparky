@@ -28,6 +28,7 @@ import {
   MapPinCheck,
   Pin,
   NotebookText,
+  RotateCcw,
 } from "lucide-react";
 import { LocationUtils, Formatters } from "@/utils";
 import { toast } from "sonner";
@@ -94,7 +95,7 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({
       setCurrentLocation(newLocation);
 
       if (!isAutomatic) {
-        toast.success("📍 Ubicación actualizada correctamente");
+        toast.success("Ubicación actualizada correctamente");
       }
     } catch (err: any) {
       console.error("Error getting location:", err);
@@ -379,7 +380,7 @@ const ProximitySearch: React.FC<ProximitySearchProps> = ({
                   </>
                 ) : (
                   <>
-                    <Target className="mr-2 h-4 w-4" />
+                    <RotateCcw className="mr-2 h-4 w-4" />
                     Reintentar
                   </>
                 )}

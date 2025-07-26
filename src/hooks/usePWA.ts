@@ -37,7 +37,7 @@ export const usePWA = (): PWAState & PWAActions => {
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
-      toast.success("¡App instalada correctamente! 🎉");
+      toast.success("¡App instalada correctamente!");
     };
 
     const handleOnline = () => {

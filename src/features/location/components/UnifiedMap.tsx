@@ -34,26 +34,46 @@ const createIcon = (type: "car" | "gps" | "manual", isSelected: boolean = false)
     manual: "#f59e0b",
   };
 
-  const emojis = {
-    car: "🚗",
-    gps: "📍",
-    manual: "🎯",
+  const svgIcons = {
+    car: `(
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="lucide lucide-car-front-icon lucide-car-front"
+      >
+        <path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8" />
+        <path d="M7 14h.01" />
+        <path d="M17 14h.01" />
+        <rect width="18" height="8" x="3" y="10" rx="2" />
+        <path d="M5 18v2" />
+        <path d="M19 18v2" />
+      </svg>
+    )`,
+    gps: `( <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin-icon lucide-map-pin"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg> )`,
+    manual: `( <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-target-icon lucide-target"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> )`,
   };
 
   return L.divIcon({
     html: `<div style="
       background-color: ${colors[type]};
-      width: 24px;
-      height: 24px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
-      border: 3px solid white;
+      border: 2px solid white;
       box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 12px;
       animation: ${isSelected ? "pulse 2s infinite" : "none"};
-    ">${emojis[type]}</div>
+    ">${svgIcons[type]}</div>
     <style>
       @keyframes pulse {
         0%, 100% { transform: scale(1); }
@@ -392,7 +412,9 @@ export const UnifiedMap: React.FC<UnifiedMapProps> = ({
           <Marker position={gpsLocation} icon={createIcon("gps")}>
             <Popup>
               <div className="text-center p-2">
-                <h4 className="font-semibold text-green-600 mb-2">📍 Tu ubicación actual</h4>
+                <h4 className="font-semibold text-green-600 mb-2">
+                  <MapPin className="w-4 h-4 inline mr-1  text-red-600" /> Tu ubicación actual
+                </h4>
                 <p className="text-sm text-gray-600">
                   {gpsLocation[0].toFixed(6)}, {gpsLocation[1].toFixed(6)}
                 </p>

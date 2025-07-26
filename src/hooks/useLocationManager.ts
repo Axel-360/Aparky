@@ -4,9 +4,9 @@ import type { CarLocation, UserPreferences } from "@/types/location";
 import { deleteCarLocation, updateCarLocation } from "@/utils/storage";
 import { copyToClipboard } from "@/utils/helpers";
 import { timerManager } from "@/utils/timerManager";
-// import { LocationUtils } from "@/utils/locationUtils";
 import { Formatters } from "@/utils/formatters";
 import { toast } from "sonner";
+import { CloudSun, Warehouse, SquareParking, MapPinPlusInside, MapPin, Pointer, Target } from "lucide-react";
 
 interface LocationManagerState {
   selectedLocationId?: string;
@@ -35,8 +35,8 @@ interface LocationManagerActions {
   cancelTimer: (locationId: string) => Promise<void>;
 
   // Utilidades
-  getParkingTypeInfo: (type?: string) => { icon: string; name: string; color: string };
-  getLocationAccuracyInfo: (location: CarLocation) => { icon: string; text: string; description: string };
+  getParkingTypeInfo: (type?: string) => { icon: React.ElementType; name: string; color: string };
+  getLocationAccuracyInfo: (location: CarLocation) => { icon: React.ElementType; text: string; description: string };
   formatLocationDate: (timestamp: number) => string;
 }
 
@@ -49,13 +49,13 @@ export const useLocationManager = (
 ): LocationManagerState & LocationManagerActions => {
   const [state, setState] = useState<LocationManagerState>({});
 
-  // Información de tipos de parking (centralizada)
+  // Información de tipos de parking (centralizada) - SIN EMOJIS
   const parkingTypeInfo = useMemo(
     () => ({
-      Calle: { icon: "🛣️", name: "Calle", color: "text-blue-600 bg-blue-50 border-blue-200" },
-      Garaje: { icon: "🏢", name: "Garaje", color: "text-gray-600 bg-gray-50 border-gray-200" },
-      Parking: { icon: "🅿️", name: "Aparcamiento", color: "text-green-600 bg-green-50 border-green-200" },
-      Otro: { icon: "📍", name: "Otro", color: "text-purple-600 bg-purple-50 border-purple-200" },
+      Calle: { icon: CloudSun, name: "Calle", color: "text-blue-600 bg-blue-50 border-blue-200" },
+      Garaje: { icon: Warehouse, name: "Garaje", color: "text-gray-600 bg-gray-50 border-gray-200" },
+      Parking: { icon: SquareParking, name: "Aparcamiento", color: "text-green-600 bg-green-50 border-green-200" },
+      Otro: { icon: MapPinPlusInside, name: "Otro", color: "text-purple-600 bg-purple-50 border-purple-200" },
     }),
     []
   );
@@ -73,30 +73,48 @@ export const useLocationManager = (
     const query = location.address
       ? encodeURIComponent(location.address)
       : `${location.latitude},${location.longitude}`;
-    window.open(`https://maps.google.com/?q=${query}`, "_blank", "noopener,noreferrer");
+
+    const urls = {
+      google: `https://www.google.com/maps/search/?api=1&query=${query}`,
+      apple: `http://maps.apple.com/?q=${query}`,
+      openstreet: `https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}&zoom=16`,
+    };
+
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    let mapUrl = urls.google;
+    if (isMobile && isIOS) {
+      mapUrl = urls.apple;
+    }
+
+    window.open(mapUrl, "_blank");
+    toast.success("Abriendo en aplicación de mapas");
   }, []);
 
   const shareLocation = useCallback(async (location: CarLocation) => {
-    const shareData = {
-      title: "Ubicación de mi coche",
-      text: `Mi coche está aparcado aquí. ${location.note ? `Nota: "${location.note}"` : ""}`,
-      url: `https://maps.google.com/?q=${location.latitude},${location.longitude}`,
-    };
+    const shareText = `Mi coche está aparcado aquí: ${
+      location.address || `${location.latitude}, ${location.longitude}`
+    }`;
+    const shareUrl = `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`;
 
     if (navigator.share) {
       try {
-        await navigator.share(shareData);
-        toast.success("Ubicación compartida.");
-      } catch (err) {
-        console.log("Error al compartir:", err);
+        await navigator.share({
+          title: "Ubicación de mi coche",
+          text: shareText,
+          url: shareUrl,
+        });
+        toast.success("Ubicación compartida");
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          await copyToClipboard(`${shareText}\n${shareUrl}`);
+          toast.success("Enlace copiado al portapapeles");
+        }
       }
     } else {
-      try {
-        await copyToClipboard(shareData.url);
-        toast.success("Enlace copiado al portapapeles.");
-      } catch {
-        toast.error("No se pudo copiar el enlace.");
-      }
+      await copyToClipboard(`${shareText}\n${shareUrl}`);
+      toast.success("Enlace copiado al portapapeles");
     }
   }, []);
 
@@ -134,11 +152,13 @@ export const useLocationManager = (
     if (!state.deletingLocation) return;
 
     try {
-      const { id } = state.deletingLocation;
+      const id = state.deletingLocation.id;
 
       // Cancelar timer si existe
-      if (state.deletingLocation.expiryTime) {
+      try {
         timerManager.cancelTimer(id);
+      } catch (error) {
+        console.log("No timer to cancel for location:", id);
       }
 
       await deleteCarLocation(id);
@@ -216,7 +236,7 @@ export const useLocationManager = (
   const getLocationAccuracyInfo = useCallback((location: CarLocation) => {
     if (location.isManualPlacement) {
       return {
-        icon: "🎯",
+        icon: Pointer,
         text: "Ubicación editada manualmente",
         description: "Coordenadas modificadas",
       };
@@ -224,30 +244,25 @@ export const useLocationManager = (
 
     if (location.accuracy && location.accuracy <= 10) {
       return {
-        icon: "🎯",
+        icon: Target,
         text: "GPS de alta precisión",
         description: `±${Math.round(location.accuracy)}m`,
       };
     }
 
     return {
-      icon: "📍",
+      icon: MapPin,
       text: "GPS automático",
       description: location.accuracy ? `±${Math.round(location.accuracy)}m` : "Ubicación GPS",
     };
   }, []);
 
   const formatLocationDate = useCallback((timestamp: number) => {
-    return Formatters.formatDateTime(timestamp).full;
+    return Formatters.formatDateTime(timestamp).relative;
   }, []);
 
   return {
-    // Estado
-    selectedLocationId: state.selectedLocationId,
-    editingLocation: state.editingLocation,
-    deletingLocation: state.deletingLocation,
-
-    // Acciones
+    ...state,
     selectLocation,
     openInMaps,
     shareLocation,
@@ -259,8 +274,6 @@ export const useLocationManager = (
     cancelDelete,
     extendTimer,
     cancelTimer,
-
-    // Utilidades
     getParkingTypeInfo,
     getLocationAccuracyInfo,
     formatLocationDate,
