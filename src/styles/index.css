@@ -172,3 +172,31 @@ Usamos valores altos y !important para garantizar el orden de las capas.
   color: white !important;
   border: 1px solid #374151 !important;
 }
+
+
+/* ============================================
+   SOLUCIÓN Z-INDEX - SELECTS EN MODALES
+   ============================================ */
+
+/* Forzar que los Select estén SIEMPRE por encima de todo */
+[data-radix-select-content] {
+  z-index: 99999 !important;
+}
+
+[data-radix-select-viewport] {
+  z-index: 99999 !important;
+}
+
+/* También los popovers y dropdowns */
+[data-radix-popover-content] {
+  z-index: 99999 !important;
+}
+
+[data-radix-dropdown-menu-content] {
+  z-index: 99999 !important;
+}
+
+/* Asegurar que el portal del Select funcione */
+[data-radix-popper-content-wrapper] {
+  z-index: 99999 !important;
+}

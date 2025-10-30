@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import type { CarLocation } from "@/types/location";
 import "leaflet/dist/leaflet.css";
 
+import { offlineMapManager } from "@/utils/offlineMaps";
+
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
@@ -142,6 +144,43 @@ const MapClickHandler: React.FC<{
   return null;
 };
 
+// 🔥 NUEVO: Componente para interceptar la carga de tiles y usar cache offline
+const OfflineTileLayer: React.FC<{
+  url: string;
+  attribution: string;
+}> = ({ url, attribution }) => {
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  useEffect(() => {
+    // Hook para interceptar la carga de tiles
+    if (tileLayerRef.current) {
+      const originalCreateTile = (tileLayerRef.current as any).createTile;
+
+      (tileLayerRef.current as any).createTile = function (coords: any, done: any) {
+        const tile = originalCreateTile.call(this, coords, done);
+        const tileUrl = (this as any).getTileUrl(coords);
+
+        // Intentar cargar desde cache primero
+        offlineMapManager
+          .getTile(tileUrl)
+          .then((cachedBlob) => {
+            if (cachedBlob) {
+              // Usar tile cacheado
+              tile.src = URL.createObjectURL(cachedBlob);
+            }
+            // Si no está en cache, Leaflet lo cargará desde la red automáticamente
+          })
+          .catch((error) => {
+            console.debug("Error loading cached tile, using network:", error);
+            // En caso de error, Leaflet usará la red
+          });
+
+        return tile;
+      };
+    }
+  }, []);
+  return <TileLayer ref={tileLayerRef} url={url} attribution={attribution} />;
+};
+
 const MapControls: React.FC<{
   onCurrentLocation?: () => void;
   onReset?: () => void;
@@ -213,6 +252,13 @@ export const UnifiedMap: React.FC<UnifiedMapProps> = ({
   const mapRef = useRef<L.Map | null>(null);
 
   const mapConfig = getMapConfig(mapType);
+
+  // 🔥 NUEVO: Inicializar el gestor de mapas offline
+  useEffect(() => {
+    offlineMapManager.init().catch((error) => {
+      console.error("Error initializing offline map manager:", error);
+    });
+  }, []);
 
   useEffect(() => {
     setCurrentCenter(center);
@@ -302,7 +348,8 @@ export const UnifiedMap: React.FC<UnifiedMapProps> = ({
         key={`${mapType}-${currentCenter[0]}-${currentCenter[1]}`}
       >
         <MapController center={currentCenter} zoom={currentZoom} />
-        <TileLayer url={mapConfig.url} attribution={mapConfig.attribution} />
+        {/* 🔥 CAMBIADO: Usar OfflineTileLayer en lugar de TileLayer normal */}
+        <OfflineTileLayer url={mapConfig.url} attribution={mapConfig.attribution} />
 
         <MapClickHandler onMapClick={handleMapClick} isClickable={isManualMode} />
 

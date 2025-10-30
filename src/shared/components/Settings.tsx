@@ -5,6 +5,7 @@ import { getUserPreferences, saveUserPreferences } from "@/utils/preferences";
 import { useTheme } from "@/shared/ui/theme-provider";
 import { ConfirmationDialog, ResetConfirmationDialog } from "@/shared/components/ConfirmationDialog";
 import { LocationManager, LocationPreferenceSettings } from "@/utils/locationDefaults";
+import { OfflineMapManager } from "@/components/OfflineMapManager";
 import {
   Sheet,
   SheetContent,
@@ -574,6 +575,18 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, onPreferencesChang
                   y direcciones.
                 </AlertDescription>
               </Alert>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Map className="h-5 w-5" />
+                Mapas Offline
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <OfflineMapManager />
             </CardContent>
           </Card>
 
